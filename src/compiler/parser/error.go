@@ -11,11 +11,12 @@ type ParseError struct {
 	Token   token.Token
 	Message string
 }
+
 func (e *ParseError) Error() string {
 	return e.Message
 }
 
-// Parser's report 
+// Parser's report
 func (p *Parser) error(tok token.Token, message string) *ParseError {
 	p.reportError(tok, message)
 	return &ParseError{

@@ -24,8 +24,8 @@ import (
 // top down parser, goes from highest rule (grammar) to lowest (terminals)
 // each rule is a function
 type Parser struct {
-	Tokens     []token.Token
-	current    int
+	Tokens  []token.Token
+	current int
 }
 
 // consume the current token and advance to the next
@@ -71,11 +71,11 @@ func (p *Parser) consumeMatchingToken(tokenType token.TokenType, errorMessage st
 	return token.Token{}, p.error(p.getCurrentToken(), errorMessage)
 }
 
-// Synchronize is only called in the event we encounter an error token. 
+// Synchronize is only called in the event we encounter an error token.
 func (p *Parser) synchronize() {
 	// Ignore the error token. This has already been reported from Parser.error()
 	p.advanceToken()
-	for!p.isAtEnd(){
+	for !p.isAtEnd() {
 		currentToken := p.getCurrentToken()
 		if p.getPreviousToken().Lexeme == `\n` {
 			return

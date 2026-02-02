@@ -87,14 +87,14 @@ var DockerTokenKeywords = map[string]TokenType{
 }
 
 var DocklettTokenKeywords = map[string]TokenType{
-	"SET":  SET,
-	"IF":   IF,
-	"ELIF": ELIF,
-	"ELSE": ELSE,
-	"FOR":  FOR,
-	"IN":   IN,
-	"END":  END,
-	"TRUE": TRUE,
+	"SET":   SET,
+	"IF":    IF,
+	"ELIF":  ELIF,
+	"ELSE":  ELSE,
+	"FOR":   FOR,
+	"IN":    IN,
+	"END":   END,
+	"TRUE":  TRUE,
 	"FALSE": FALSE,
 }
 

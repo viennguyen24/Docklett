@@ -11,6 +11,7 @@ type Expression interface {
 type LiteralExpression struct {
 	Value any
 }
+
 func (le LiteralExpression) exprNode() {}
 
 type Binary struct {
@@ -18,38 +19,39 @@ type Binary struct {
 	Right    Expression
 	Operator token.Token
 }
+
 func (b Binary) exprNode() {}
 
 type Unary struct {
 	Operator token.Token
 	Right    Expression
 }
+
 func (u Unary) exprNode() {}
 
 type Grouping struct {
 	Expression
 }
 
-
 // This is the most base line rule and return an immediate value
 // It can be a literal (true, false, string, number) or a grouped expression, which calls back to expression() to parse it completely top level down again
 // We add the group expression because parenthesis have the highest precedence, and we want to treat it as a single unit of value like literals and identifiers
 func (p *Parser) primary() (Expression, error) {
-	if(p.matchCurrentToken(token.TRUE)) {
+	if p.matchCurrentToken(token.TRUE) {
 		return LiteralExpression{Value: true}, nil
 	}
-	if(p.matchCurrentToken(token.FALSE)) {
+	if p.matchCurrentToken(token.FALSE) {
 		return LiteralExpression{Value: false}, nil
 	}
-	if(p.matchCurrentToken(token.STRING)) {
+	if p.matchCurrentToken(token.STRING) {
 		return LiteralExpression{Value: p.getPreviousToken().Literal}, nil
 	}
-	if(p.matchCurrentToken(token.NUMBER)) {
+	if p.matchCurrentToken(token.NUMBER) {
 		return LiteralExpression{Value: p.getPreviousToken().Literal}, nil
 	}
 
-	// If token is an opening parenthesis, the next tokens must form a new expression followed by a closing parenthesis token 
-	if(p.matchCurrentToken(token.LPAREN)) {
+	// If token is an opening parenthesis, the next tokens must form a new expression followed by a closing parenthesis token
+	if p.matchCurrentToken(token.LPAREN) {
 		expression, _ := p.expression()
 		_, err := p.consumeMatchingToken(token.RPAREN, "Expected ')' after expression.")
 		if err != nil {
@@ -57,7 +59,7 @@ func (p *Parser) primary() (Expression, error) {
 		}
 		return Grouping{Expression: expression}, nil
 	}
-	return nil, p.error(p.getCurrentToken(), "Unexpected token " + p.getCurrentToken().Lexeme)
+	return nil, p.error(p.getCurrentToken(), "Unexpected token "+p.getCurrentToken().Lexeme)
 }
 
 // An unary just takes the immediate value returned from primary and mutate that

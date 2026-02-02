@@ -1,4 +1,4 @@
-﻿package scanner
+package scanner
 
 import (
 	"fmt"
@@ -39,7 +39,7 @@ func (s *Scanner) ReadSource(filename string) error {
 
 	s.SourcePath = filepath.Dir(absPath)
 	s.SourceName = filepath.Base(absPath)
-	s.Source     = string(data)
+	s.Source = string(data)
 	return nil
 }
 
@@ -79,8 +79,8 @@ func (s *Scanner) isAtEnd() bool {
 func (s *Scanner) addToken(tokenType token.TokenType, literal any) {
 	lexeme, _ := util.ReadSubstring(s.Source, s.start, s.current)
 	s.Tokens = append(s.Tokens, token.Token{
-		Type:    tokenType,
-		Lexeme:  lexeme,
+		Type:   tokenType,
+		Lexeme: lexeme,
 		Position: token.Position{
 			Line: s.line,
 			File: s.SourceName,
@@ -228,7 +228,7 @@ func (s *Scanner) scanStringToken() (tokenType token.TokenType, literal string, 
 	if s.isAtEnd() {
 		return token.ILLEGAL, "", fmt.Errorf("unterminated string literal")
 	}
-	s.advanceChar() // consume closing " 
+	s.advanceChar() // consume closing "
 	return token.STRING, strLiteral, nil
 
 }
@@ -269,7 +269,7 @@ func (s *Scanner) scanDockerToken() (tokenType token.TokenType, literal any, err
 	for !s.isAtEnd() {
 		nextChar, _ := util.ReadSingleChar(s.Source, s.current)
 		if nextChar == '\n' {
-			// Dockerfile instruction may span multiple lines using \, so we check when moving into a new line are we using \ to 
+			// Dockerfile instruction may span multiple lines using \, so we check when moving into a new line are we using \ to
 			// continue the instruction
 			continued := lastNonSpace == '\\'
 			s.advanceChar() // consume the newline
@@ -329,4 +329,4 @@ func (s *Scanner) scanKeywordsAndIdentifierTokens() (tokenType token.TokenType, 
 
 	return token.IDENTIFIER, text, nil
 
-} 
+}
