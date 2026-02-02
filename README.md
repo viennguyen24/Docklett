@@ -7,6 +7,42 @@ A Golang compiler to add programming language features to Dockerfile syntax.
 - Go 1.25.5 or higher
 - Git (for version control)
 
+## Getting Started
+
+### Step 1: Clone the Repository
+```bash
+git clone <repository-url>
+cd Docklett
+```
+
+### Step 2: Verify Go Installation
+```bash
+go version  # Should show Go 1.25.5 or higher
+```
+
+### Step 3: Install Development Tools (Skip if you don't need to work on source code)
+
+**On Unix/Linux/macOS/Git Bash (Windows):**
+```bash
+chmod +x scripts/setup-hooks.sh
+./scripts/setup-hooks.sh
+```
+
+**On Windows PowerShell:**
+```powershell
+.\scripts\setup-hooks.ps1
+```
+
+This installs Git hooks that automatically run `go fmt` and `go vet` before each commit.
+
+### Step 4: Verify Setup
+```bash
+cd src
+go build -o ../docklett.exe main.go
+```
+
+If successful, you're ready to develop!
+
 ## Project Structure
 
 ```
@@ -64,6 +100,33 @@ go run main.go -file ../example.docklett
 ```
 
 ## Development
+
+### Installing Git Hooks
+
+This project uses pre-commit hooks to automatically run `go fmt` and `go vet` before each commit.
+
+**Installation (Unix/Linux/macOS/Git Bash on Windows):**
+```bash
+./scripts/setup-hooks.sh
+```
+
+**Installation (Windows PowerShell):**
+```powershell
+.\scripts\setup-hooks.ps1
+```
+
+**What the hook does:**
+- Runs `go fmt` on all staged `.go` files and auto-stages changes
+- Runs `go vet ./...` to check for common mistakes
+- Blocks commit if vet finds issues
+
+**Bypassing the hook (not recommended):**
+```bash
+git commit --no-verify
+```
+
+### Architecture
+
 Check `design/DESIGN.md` for architecture details.
 
 ## License

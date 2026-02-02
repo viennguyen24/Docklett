@@ -1,0 +1,36 @@
+#!/bin/sh
+# Pre-commit hook: Go formatting & linting
+
+# Check if go is installed
+if ! command -v go >/dev/null 2>&1; then
+    echo "Error: 'go' command not found. Install Go toolchain."
+    exit 1
+fi
+
+# Get staged Go files
+STAGED_GO_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.go$')
+
+# Exit if no Go files staged
+if [ -z "$STAGED_GO_FILES" ]; then
+    exit 0
+fi
+
+echo "Running go fmt..."
+go fmt $STAGED_GO_FILES
+
+# Re-stage files that go fmt modified
+for FILE in $STAGED_GO_FILES; do
+    git add "$FILE"
+done
+
+echo "Running go vet..."
+go vet ./...
+VET_EXIT=$?
+
+if [ $VET_EXIT -ne 0 ]; then
+    echo "Error: go vet found issues. Fix them before committing."
+    exit 1
+fi
+
+echo "✓ All checks passed"
+exit 0
