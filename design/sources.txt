@@ -1,0 +1,10 @@
+golang api docs:
+https://pkg.go.dev/github.com/moby/buildkit/client/llb
+llb terms:
+https://github.com/moby/buildkit/blob/master/docs/dev/README.md
+dockerfile to llb:
+https://github.com/moby/buildkit/blob/master/docs/dev/dockerfile-llb.md
+llb to solver:
+https://github.com/moby/buildkit/blob/master/docs/dev/solver.md
+examples of running buildkit (buildkit* folders):
+https://github.com/moby/buildkit/tree/master/examples
