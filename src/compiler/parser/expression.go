@@ -5,14 +5,17 @@ import (
 )
 
 type Expression interface {
-	exprNode()
+	Accept(visitor ExpressionVisitor) (any, error)
 }
 
 type LiteralExpression struct {
 	Value any
+	Token token.Token
 }
 
-func (le LiteralExpression) exprNode() {}
+func (le *LiteralExpression) Accept(visitor ExpressionVisitor) (any, error) {
+	return visitor.VisitLiteral(le)
+}
 
 type Binary struct {
 	Left     Expression
@@ -20,17 +23,25 @@ type Binary struct {
 	Operator token.Token
 }
 
-func (b Binary) exprNode() {}
+func (b *Binary) Accept(visitor ExpressionVisitor) (any, error) {
+	return visitor.VisitBinary(b)
+}
 
 type Unary struct {
 	Operator token.Token
 	Right    Expression
 }
 
-func (u Unary) exprNode() {}
+func (u *Unary) Accept(visitor ExpressionVisitor) (any, error) {
+	return visitor.VisitUnary(u)
+}
 
 type Grouping struct {
 	Expression
+}
+
+func (g *Grouping) Accept(visitor ExpressionVisitor) (any, error) {
+	return visitor.VisitGrouping(g)
 }
 
 // This is the most base line rule and return an immediate value
@@ -38,26 +49,27 @@ type Grouping struct {
 // We add the group expression because parenthesis have the highest precedence, and we want to treat it as a single unit of value like literals and identifiers
 func (p *Parser) primary() (Expression, error) {
 	if p.matchCurrentToken(token.TRUE) {
-		return LiteralExpression{Value: true}, nil
+		return &LiteralExpression{Value: true, Token: p.getPreviousToken()}, nil
 	}
 	if p.matchCurrentToken(token.FALSE) {
-		return LiteralExpression{Value: false}, nil
+		return &LiteralExpression{Value: false, Token: p.getPreviousToken()}, nil
 	}
-	if p.matchCurrentToken(token.STRING) {
-		return LiteralExpression{Value: p.getPreviousToken().Literal}, nil
-	}
-	if p.matchCurrentToken(token.NUMBER) {
-		return LiteralExpression{Value: p.getPreviousToken().Literal}, nil
+	if p.matchCurrentToken(token.STRING, token.NUMBER) {
+		prev := p.getPreviousToken()
+		return &LiteralExpression{Value: prev.Literal, Token: prev}, nil
 	}
 
 	// If token is an opening parenthesis, the next tokens must form a new expression followed by a closing parenthesis token
 	if p.matchCurrentToken(token.LPAREN) {
-		expression, _ := p.expression()
-		_, err := p.consumeMatchingToken(token.RPAREN, "Expected ')' after expression.")
+		expression, err := p.expression()
 		if err != nil {
 			return nil, err
 		}
-		return Grouping{Expression: expression}, nil
+		_, err = p.consumeMatchingToken(token.RPAREN, "Expected ')' after expression.")
+		if err != nil {
+			return nil, err
+		}
+		return &Grouping{Expression: expression}, nil
 	}
 	return nil, p.error(p.getCurrentToken(), "Unexpected token "+p.getCurrentToken().Lexeme)
 }
@@ -71,13 +83,9 @@ func (p *Parser) unary() (Expression, error) {
 		if err != nil {
 			return nil, err
 		}
-		return Unary{Operator: prev, Right: right}, nil
+		return &Unary{Operator: prev, Right: right}, nil
 	}
-	primaryValue, err := p.primary()
-	if err != nil {
-		return nil, err
-	}
-	return primaryValue, nil
+	return p.primary()
 }
 
 // A factor rule is defined as an unary (now a single unit of actual value) followed by
@@ -94,7 +102,7 @@ func (p *Parser) factor() (Expression, error) {
 		if err != nil {
 			return nil, err
 		}
-		expr = Binary{Left: expr, Operator: operator, Right: right}
+		expr = &Binary{Left: expr, Operator: operator, Right: right}
 	}
 	return expr, nil
 }
@@ -111,7 +119,7 @@ func (p *Parser) term() (Expression, error) {
 		if err != nil {
 			return nil, err
 		}
-		expr = Binary{Left: expr, Operator: operator, Right: right}
+		expr = &Binary{Left: expr, Operator: operator, Right: right}
 	}
 	return expr, nil
 }
@@ -127,7 +135,7 @@ func (p *Parser) comparison() (Expression, error) {
 		if err != nil {
 			return nil, err
 		}
-		expr = Binary{Left: expr, Operator: operator, Right: right}
+		expr = &Binary{Left: expr, Operator: operator, Right: right}
 	}
 	return expr, nil
 }
@@ -143,24 +151,17 @@ func (p *Parser) equality() (Expression, error) {
 		if err != nil {
 			return nil, err
 		}
-		expr = Binary{Left: expr, Operator: operator, Right: right}
+		expr = &Binary{Left: expr, Operator: operator, Right: right}
 	}
 	return expr, nil
 }
 
 func (p *Parser) expression() (Expression, error) {
-	var equ Expression
-	var err error
-	for !p.isAtEnd() {
-		equ, err = p.equality()
-		if err != nil {
-			p.synchronize()
-		}
-	}
-	return equ, nil
+	return p.equality()
 }
 
-func (p *Parser) Parse() (Expression, error) {
+func (p *Parser) Parse(tokens []token.Token) (Expression, error) {
+	p.Tokens = tokens
 	expr, err := p.expression()
 	if err != nil {
 		return nil, err

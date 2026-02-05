@@ -25,34 +25,32 @@ func NewCompiler() *Compiler {
 }
 
 // main entry point
-func (i *Compiler) Run(inputFilePath string) error {
-	i.InputFilePath = inputFilePath
+func (c *Compiler) Run(inputFilePath string) error {
+	c.InputFilePath = inputFilePath
 
-	err := i.Scanner.ReadSource(inputFilePath)
+	err := c.Scanner.ReadSource(inputFilePath)
 	if err != nil {
-		i.HasError = true
+		c.HasError = true
 		return err
 	}
 
-	i.InputFileName = i.Scanner.SourceName
+	c.InputFileName = c.Scanner.SourceName
 
-	err = i.Scanner.ScanSource()
+	err = c.Scanner.ScanSource()
 	if err != nil {
-		i.HasError = true
+		c.HasError = true
 		return err
 	}
 
-	i.GeneratedTokens = i.Scanner.Tokens
+	c.GeneratedTokens = c.Scanner.Tokens
+	ast, err := c.Parser.Parse(c.GeneratedTokens)
 
-	i.Parser.Tokens = i.GeneratedTokens
-
-	ast, err := i.Parser.Parse()
 	if err != nil {
-		i.HasError = true
+		c.HasError = true
 		return err
 	}
 
-	i.GeneratedAST = ast
+	c.GeneratedAST = ast
 
 	return nil
 }
