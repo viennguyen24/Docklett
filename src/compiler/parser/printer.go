@@ -3,65 +3,15 @@ package parser
 import (
 	"docklett/compiler/token"
 	"fmt"
-	"reflect"
 	"strings"
 )
 
-var tokenTypeNames = map[token.TokenType]string{
-	token.IDENTIFIER:   "IDENTIFIER",
-	token.STRING:       "STRING",
-	token.NUMBER:       "NUMBER",
-	token.BOOL:         "BOOL",
-	token.EQUAL:        "EQUAL",
-	token.ASSIGN:       "ASSIGN",
-	token.UNEQUAL:      "UNEQUAL",
-	token.ADD:          "ADD",
-	token.ADD_ASSIGN:   "ADD_ASSIGN",
-	token.SUBTRACT:     "SUBTRACT",
-	token.SUB_ASSIGN:   "SUB_ASSIGN",
-	token.MULTI:        "MULTI",
-	token.MULTI_ASSIGN: "MULTI_ASSIGN",
-	token.DIVIDE:       "DIVIDE",
-	token.DIV_ASSIGN:   "DIV_ASSIGN",
-	token.NEGATE:       "NEGATE",
-	token.AND:          "AND",
-	token.OR:           "OR",
-	token.GREATER:      "GREATER",
-	token.LESS:         "LESS",
-	token.GTE:          "GTE",
-	token.LTE:          "LTE",
-	token.LPAREN:       "LPAREN",
-	token.RPAREN:       "RPAREN",
-	token.LBRACE:       "LBRACE",
-	token.RBRACE:       "RBRACE",
-	token.LBRACKET:     "LBRACKET",
-	token.RBRACKET:     "RBRACKET",
-	token.COLON:        "COLON",
-	token.COMMA:        "COMMA",
-	token.SET:          "SET",
-	token.IF:           "IF",
-	token.ELIF:         "ELIF",
-	token.ELSE:         "ELSE",
-	token.FOR:          "FOR",
-	token.IN:           "IN",
-	token.END:          "END",
-	token.TRUE:         "TRUE",
-	token.FALSE:        "FALSE",
-	token.DLINE:        "DLINE",
-	token.EOF:          "EOF",
-	token.ILLEGAL:      "ILLEGAL",
-}
-
 type TreePrinter struct {
-	indentLevel int
-	indentChar  string
 	isLastChild []bool
 }
 
 func NewTreePrinter() *TreePrinter {
 	return &TreePrinter{
-		indentLevel: 0,
-		indentChar:  "  ",
 		isLastChild: []bool{},
 	}
 }
@@ -88,50 +38,8 @@ func (tp *TreePrinter) getIndent(isLast bool, isField bool) string {
 	return result.String()
 }
 
-func (tp *TreePrinter) PrintTree(expr Expression) string {
-	if expr == nil {
-		return "<nil>"
-	}
-
-	exprValue := reflect.ValueOf(expr)
-	exprType := reflect.TypeOf(expr)
-
-	typeName := exprType.Name()
-	result := typeName + "\n"
-
-	numFields := exprValue.NumField()
-
-	for i := 0; i < numFields; i++ {
-		field := exprValue.Field(i)
-		fieldType := exprType.Field(i)
-		fieldName := fieldType.Name
-		isLast := (i == numFields-1)
-
-		prefix := tp.getIndent(isLast, true)
-		result += prefix + fieldName + ": "
-
-		if field.Type().String() == "token.Token" {
-			tok := field.Interface().(token.Token)
-			result += tp.formatToken(tok) + "\n"
-		} else if field.Type().Kind() == reflect.Interface && field.CanInterface() {
-			if exprField, ok := field.Interface().(Expression); ok {
-				tp.isLastChild = append(tp.isLastChild, isLast)
-				nestedTree := tp.PrintTree(exprField)
-				result += nestedTree
-				tp.isLastChild = tp.isLastChild[:len(tp.isLastChild)-1]
-			} else {
-				result += fmt.Sprintf("%v\n", field.Interface())
-			}
-		} else {
-			result += fmt.Sprintf("%v\n", field.Interface())
-		}
-	}
-
-	return result
-}
-
 func (tp *TreePrinter) formatToken(tok token.Token) string {
-	typeName := tokenTypeNames[tok.Type]
+	typeName := token.TokenTypeNames[tok.Type]
 	if typeName == "" {
 		typeName = fmt.Sprintf("UNKNOWN(%d)", tok.Type)
 	}
@@ -146,23 +54,99 @@ func (tp *TreePrinter) formatToken(tok token.Token) string {
 	return base
 }
 
+func (tp *TreePrinter) VisitLiteral(literal *LiteralExpression) (any, error) {
+	result := "LiteralExpression\n"
+	prefix := tp.getIndent(true, true)
+	result += prefix + fmt.Sprintf("Value: %v\n", literal.Value)
+	return result, nil
+}
+
+func (tp *TreePrinter) VisitBinary(binary *Binary) (any, error) {
+	result := "Binary\n"
+
+	prefix := tp.getIndent(false, true)
+	result += prefix + "Left: "
+	tp.isLastChild = append(tp.isLastChild, false)
+	leftResult, err := binary.Left.Accept(tp)
+	if err != nil {
+		return nil, err
+	}
+	result += leftResult.(string)
+	tp.isLastChild = tp.isLastChild[:len(tp.isLastChild)-1]
+
+	prefix = tp.getIndent(false, true)
+	result += prefix + "Operator: " + tp.formatToken(binary.Operator) + "\n"
+
+	prefix = tp.getIndent(true, true)
+	result += prefix + "Right: "
+	tp.isLastChild = append(tp.isLastChild, true)
+	rightResult, err := binary.Right.Accept(tp)
+	if err != nil {
+		return nil, err
+	}
+	result += rightResult.(string)
+	tp.isLastChild = tp.isLastChild[:len(tp.isLastChild)-1]
+
+	return result, nil
+}
+
+func (tp *TreePrinter) VisitUnary(unary *Unary) (any, error) {
+	result := "Unary\n"
+
+	prefix := tp.getIndent(false, true)
+	result += prefix + "Operator: " + tp.formatToken(unary.Operator) + "\n"
+
+	prefix = tp.getIndent(true, true)
+	result += prefix + "Right: "
+	tp.isLastChild = append(tp.isLastChild, true)
+	rightResult, err := unary.Right.Accept(tp)
+	if err != nil {
+		return nil, err
+	}
+	result += rightResult.(string)
+	tp.isLastChild = tp.isLastChild[:len(tp.isLastChild)-1]
+
+	return result, nil
+}
+
+func (tp *TreePrinter) VisitGrouping(grouping *Grouping) (any, error) {
+	result := "Grouping\n"
+
+	prefix := tp.getIndent(true, true)
+	result += prefix + "Expression: "
+	tp.isLastChild = append(tp.isLastChild, true)
+	exprResult, err := grouping.Expression.Accept(tp)
+	if err != nil {
+		return nil, err
+	}
+	result += exprResult.(string)
+	tp.isLastChild = tp.isLastChild[:len(tp.isLastChild)-1]
+
+	return result, nil
+}
+
 func PrintAST(expr Expression) {
 	printer := NewTreePrinter()
-	fmt.Println(printer.PrintTree(expr))
+	result, err := expr.Accept(printer)
+	if err != nil {
+		fmt.Printf("Error printing AST: %v\n", err)
+		return
+	}
+	fmt.Println(result.(string))
 }
 
 func DemoPrinter() {
 	// (5 + 3) * 2
-	expr := Binary{
-		Left: Grouping{
-			Expression: Binary{
-				Left: LiteralExpression{Value: 5},
+	expr := &Binary{
+		Left: &Grouping{
+			Expression: &Binary{
+				Left: &LiteralExpression{Value: 5},
 				Operator: token.Token{
 					Type:     token.ADD,
 					Lexeme:   "+",
 					Position: token.Position{Line: 1, Col: 3},
 				},
-				Right: LiteralExpression{Value: 3},
+				Right: &LiteralExpression{Value: 3},
 			},
 		},
 		Operator: token.Token{
@@ -170,7 +154,7 @@ func DemoPrinter() {
 			Lexeme:   "*",
 			Position: token.Position{Line: 1, Col: 8},
 		},
-		Right: LiteralExpression{Value: 2},
+		Right: &LiteralExpression{Value: 2},
 	}
 
 	PrintAST(expr)

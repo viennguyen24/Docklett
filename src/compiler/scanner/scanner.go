@@ -1,5 +1,9 @@
 package scanner
 
+/*
+	Scanner reads the input Dockerfile code and produces a list of tokens for the parser to consume.
+*/
+
 import (
 	"fmt"
 	"os"
@@ -13,7 +17,6 @@ import (
 	"unicode/utf8"
 )
 
-// Scanner reads the input Dockerfile code and produces a list of tokens for the parser to consume.
 type Scanner struct {
 	SourcePath string        // filepath of source code
 	SourceName string        // filename of source code
@@ -233,7 +236,6 @@ func (s *Scanner) scanStringToken() (tokenType token.TokenType, literal string, 
 
 }
 
-// todo: what would be the good type to handle numbers format ?
 func (s *Scanner) scanNumberToken() (tokenType token.TokenType, literal any, error error) {
 	isFloat := false
 	for !s.isAtEnd() {

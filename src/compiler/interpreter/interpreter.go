@@ -63,10 +63,10 @@ func (i *Interpreter) VisitUnary(unary *parser.Unary) (any, error) {
 
 	case token.SUBTRACT:
 		switch v := right.(type) {
-            case int:
-                return -v, nil
-            case float64:
-                return -v, nil
+		case int:
+			return -v, nil
+		case float64:
+			return -v, nil
 		default:
 			return nil, i.error(unary, fmt.Sprintf("subtraction operation requires number, got %T", right))
 		}
@@ -81,83 +81,106 @@ func (i *Interpreter) VisitGrouping(grouping *parser.Grouping) (any, error) {
 }
 
 func (i *Interpreter) VisitBinary(binary *parser.Binary) (any, error) {
-    left, lErr := binary.Left.Accept(i)
-    if lErr != nil { return nil, lErr }
-    
-    right, rErr := binary.Right.Accept(i)
-    if rErr != nil { return nil, rErr }
+	left, lErr := binary.Left.Accept(i)
+	if lErr != nil {
+		return nil, lErr
+	}
 
-    op := binary.Operator.Type
+	right, rErr := binary.Right.Accept(i)
+	if rErr != nil {
+		return nil, rErr
+	}
 
-    lNum, lErr := toFloat(left)
-    rNum, rErr := toFloat(right)
-    // if either is float, implicitly cast result to float
-    if lErr == nil && rErr == nil {
-        return i.executeNumeric(binary, lNum, rNum, op)
-    }
+	op := binary.Operator.Type
 
-    // only operate on both string operands
-    lStr, lOk := left.(string)
-    rStr, rOk := right.(string)
-    if lOk && rOk {
-        return i.executeString(binary, lStr, rStr, op)
-    }
+	lNum, lErr := toFloat(left)
+	rNum, rErr := toFloat(right)
+	// if either is float, implicitly cast result to float
+	if lErr == nil && rErr == nil {
+		return i.executeNumeric(binary, lNum, rNum, op)
+	}
 
-    // ony support equality on nil
-    if left == nil || right == nil {
-        return i.executeNil(binary, op)
-    }
+	// only operate on both string operands
+	lStr, lOk := left.(string)
+	rStr, rOk := right.(string)
+	if lOk && rOk {
+		return i.executeString(binary, lStr, rStr, op)
+	}
 
-    return nil, i.error(binary, fmt.Sprintf("mismatched or unsupported types: %T and %T", left, right))
+	// ony support equality on nil
+	if left == nil || right == nil {
+		return i.executeNil(binary, op)
+	}
+
+	return nil, i.error(binary, fmt.Sprintf("mismatched or unsupported types: %T and %T", left, right))
 }
 
 // Only allow operations on numeric types (float, number or float and number)
 func (i *Interpreter) executeNumeric(expr parser.Expression, l float64, r float64, op token.TokenType) (any, error) {
-    switch op {
-        case token.ADD:      return l + r, nil
-        case token.SUBTRACT: return l - r, nil
-        case token.MULTI:    return l * r, nil
-        case token.DIVIDE:
-            if r == 0.0 {
-                return nil, i.error(expr, "division by zero")
-            }
-            return l / r, nil
-        case token.EQUAL:    return l == r, nil
-        case token.UNEQUAL:  return l != r, nil
-        case token.GREATER:  return l > r, nil
-        case token.GTE:      return l >= r, nil
-        case token.LESS:     return l < r, nil
-        case token.LTE:      return l <= r, nil
-    }
-    return nil, i.error(expr, fmt.Sprintf("unrecognized numeric operator %v", op))
+	switch op {
+	case token.ADD:
+		return l + r, nil
+	case token.SUBTRACT:
+		return l - r, nil
+	case token.MULTI:
+		return l * r, nil
+	case token.DIVIDE:
+		if r == 0.0 {
+			return nil, i.error(expr, "division by zero")
+		}
+		return l / r, nil
+	case token.EQUAL:
+		return l == r, nil
+	case token.UNEQUAL:
+		return l != r, nil
+	case token.GREATER:
+		return l > r, nil
+	case token.GTE:
+		return l >= r, nil
+	case token.LESS:
+		return l < r, nil
+	case token.LTE:
+		return l <= r, nil
+	}
+	return nil, i.error(expr, fmt.Sprintf("unrecognized numeric operator %v", op))
 }
 
 func (i *Interpreter) executeString(expr parser.Expression, l string, r string, op token.TokenType) (any, error) {
-    switch op {
-        case token.ADD:      return l + r, nil // Concatenation
-        case token.EQUAL:    return l == r, nil
-        case token.UNEQUAL:  return l != r, nil
-        // comparing string base on lexicographic order
-        case token.GREATER:  return l > r, nil
-        case token.LESS:     return l < r, nil
-    }
-    return nil, i.error(expr, fmt.Sprintf("invalid string operator: %v", op))
+	switch op {
+	case token.ADD:
+		return l + r, nil // Concatenation
+	case token.EQUAL:
+		return l == r, nil
+	case token.UNEQUAL:
+		return l != r, nil
+	// comparing string base on lexicographic order
+	case token.GREATER:
+		return l > r, nil
+	case token.LESS:
+		return l < r, nil
+	}
+	return nil, i.error(expr, fmt.Sprintf("invalid string operator: %v", op))
 }
 
 func (i *Interpreter) executeNil(expr parser.Expression, op token.TokenType) (any, error) {
-    switch op {
-        case token.EQUAL:   return true, nil
-        case token.UNEQUAL: return false, nil
-    }
-    return nil, i.error(expr, "nil only supports equality checks")
+	switch op {
+	case token.EQUAL:
+		return true, nil
+	case token.UNEQUAL:
+		return false, nil
+	}
+	return nil, i.error(expr, "nil only supports equality checks")
 }
 
 func toFloat(val any) (float64, error) {
-    switch v := val.(type) {
-        case int:     return float64(v), nil
-        case float64: return v, nil
-        default:      return 0, fmt.Errorf("type error: cannot convert %T to float64", val)
-    }
+	switch v := val.(type) {
+	case int:
+		return float64(v), nil
+	case float64:
+		return v, nil
+	default:
+		return 0, fmt.Errorf("type error: cannot convert %T to float64", val)
+	}
 }
 
 func (i *Interpreter) Interpret(expr parser.Expression) (any, error) {
