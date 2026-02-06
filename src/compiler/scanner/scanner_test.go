@@ -91,6 +91,8 @@ func tokenTypeName(t token.TokenType) string {
 		return "FALSE"
 	case token.DLINE:
 		return "DLINE"
+	case token.NLINE:
+		return "NLINE"
 	case token.EOF:
 		return "EOF"
 	case token.ILLEGAL:
@@ -169,4 +171,9 @@ func TestScan_DockerfileTemplate(t *testing.T) {
 func TestScan_DockerfileLineContinuation(t *testing.T) {
 	source := "RUN echo hello \\\n    && echo world\n"
 	scanAndPrintTokens(t, "dockerfile_line_continuation.dock", source)
+}
+
+func TestScan_NewlineAfterDocker(t *testing.T) {
+	source := "FROM alpine\nRUN echo test\n"
+	scanAndPrintTokens(t, "newline_after_docker.dock", source)
 }

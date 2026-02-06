@@ -119,7 +119,7 @@ func (s *Scanner) scanToken() (tokenType token.TokenType, literal any, err error
 	case '\n':
 		s.line++
 		s.docklett = false
-		return token.ILLEGAL, nil, nil
+		return token.NLINE, nil, nil
 
 	case '=':
 		if s.nextMatch('=') {
@@ -266,20 +266,21 @@ func (s *Scanner) scanNumberToken() (tokenType token.TokenType, literal any, err
 	return token.NUMBER, intLiteral, nil
 }
 
+// Reads chars until newline, tracking last non-space char to detect backslash continuations
 func (s *Scanner) scanDockerToken() (tokenType token.TokenType, literal any, error error) {
 	var lastNonSpace rune
 	for !s.isAtEnd() {
 		nextChar, _ := util.ReadSingleChar(s.Source, s.current)
 		if nextChar == '\n' {
-			// Dockerfile instruction may span multiple lines using \, so we check when moving into a new line are we using \ to
-			// continue the instruction
+			// Dockerfile instruction may span multiple lines using \
 			continued := lastNonSpace == '\\'
-			s.advanceChar() // consume the newline
-			s.line++
-			lastNonSpace = 0
 			if continued {
+				s.advanceChar() // consume newline ONLY for continuation
+				s.line++
+				lastNonSpace = 0
 				continue
 			}
+			// Leave final newline for main scanner to emit NLINE token
 			break
 		}
 		if nextChar != ' ' && nextChar != '\t' && nextChar != '\r' {
@@ -290,6 +291,7 @@ func (s *Scanner) scanDockerToken() (tokenType token.TokenType, literal any, err
 	return token.DLINE, nil, nil
 }
 
+// Accumulates alphanumeric chars into text buffer, then looks up in DocklettTokenKeywords map
 func (s *Scanner) scanDocklettToken() (tokenType token.TokenType, literal any, error error) {
 	text := ""
 	for !s.isAtEnd() { // read until space or non-letter/digit
@@ -307,6 +309,7 @@ func (s *Scanner) scanDocklettToken() (tokenType token.TokenType, literal any, e
 	return token.ILLEGAL, nil, fmt.Errorf("unexpected Docklett token: %q", string(firstChar)+text)
 }
 
+// Accumulates alphanumeric chars, checks Docklett keywords first if flag set, then Docker keywords (delegates to scanDockerToken), else returns identifier
 func (s *Scanner) scanKeywordsAndIdentifierTokens() (tokenType token.TokenType, literal any, error error) {
 	text := string(s.Source[s.start])
 	for !s.isAtEnd() { // read until space or non-letter/digit

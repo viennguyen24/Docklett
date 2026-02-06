@@ -45,6 +45,7 @@ const (
 	RBRACKET //
 	COLON    //
 	COMMA    //
+	NLINE
 
 	// Keywords
 	SET
@@ -141,6 +142,7 @@ var TokenTypeNames = map[TokenType]string{
 	DLINE:        "DLINE",
 	EOF:          "EOF",
 	ILLEGAL:      "ILLEGAL",
+	NLINE:        "NEW_LINE",
 }
 
 type Token struct {
