@@ -101,6 +101,24 @@ go run main.go -file ../example.docklett
 
 ## Development
 
+### Running Tests
+
+```bash
+# From repo root, navigate to src/ where go.mod is located
+cd src
+
+# Run all tests in all packages
+go test ./...
+
+# Run tests in specific package
+go test ./compiler/scanner
+go test ./compiler/parser
+go test ./compiler/interpreter
+
+# Run tests with verbose output
+go test -v ./...
+```
+
 ### Installing Git Hooks
 
 This project uses pre-commit hooks to automatically run `go fmt` and `go vet` before each commit.
