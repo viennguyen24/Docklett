@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"docklett/compiler/ast"
 	"docklett/compiler/token"
 	"fmt"
 	"strings"
@@ -54,14 +55,14 @@ func (tp *TreePrinter) formatToken(tok token.Token) string {
 	return base
 }
 
-func (tp *TreePrinter) VisitLiteral(literal *LiteralExpression) (any, error) {
+func (tp *TreePrinter) VisitLiteral(literal *ast.LiteralExpression) (any, error) {
 	result := "LiteralExpression\n"
 	prefix := tp.getIndent(true, true)
 	result += prefix + fmt.Sprintf("Value: %v\n", literal.Value)
 	return result, nil
 }
 
-func (tp *TreePrinter) VisitBinary(binary *Binary) (any, error) {
+func (tp *TreePrinter) VisitBinary(binary *ast.Binary) (any, error) {
 	result := "Binary\n"
 
 	prefix := tp.getIndent(false, true)
@@ -90,7 +91,7 @@ func (tp *TreePrinter) VisitBinary(binary *Binary) (any, error) {
 	return result, nil
 }
 
-func (tp *TreePrinter) VisitUnary(unary *Unary) (any, error) {
+func (tp *TreePrinter) VisitUnary(unary *ast.Unary) (any, error) {
 	result := "Unary\n"
 
 	prefix := tp.getIndent(false, true)
@@ -109,7 +110,7 @@ func (tp *TreePrinter) VisitUnary(unary *Unary) (any, error) {
 	return result, nil
 }
 
-func (tp *TreePrinter) VisitGrouping(grouping *Grouping) (any, error) {
+func (tp *TreePrinter) VisitGrouping(grouping *ast.Grouping) (any, error) {
 	result := "Grouping\n"
 
 	prefix := tp.getIndent(true, true)
@@ -125,7 +126,7 @@ func (tp *TreePrinter) VisitGrouping(grouping *Grouping) (any, error) {
 	return result, nil
 }
 
-func PrintAST(expr Expression) {
+func PrintAST(expr ast.Expression) {
 	printer := NewTreePrinter()
 	result, err := expr.Accept(printer)
 	if err != nil {
@@ -137,16 +138,16 @@ func PrintAST(expr Expression) {
 
 func DemoPrinter() {
 	// (5 + 3) * 2
-	expr := &Binary{
-		Left: &Grouping{
-			Expression: &Binary{
-				Left: &LiteralExpression{Value: 5},
+	expr := &ast.Binary{
+		Left: &ast.Grouping{
+			Expression: &ast.Binary{
+				Left: &ast.LiteralExpression{Value: 5},
 				Operator: token.Token{
 					Type:     token.ADD,
 					Lexeme:   "+",
 					Position: token.Position{Line: 1, Col: 3},
 				},
-				Right: &LiteralExpression{Value: 3},
+				Right: &ast.LiteralExpression{Value: 3},
 			},
 		},
 		Operator: token.Token{
@@ -154,7 +155,7 @@ func DemoPrinter() {
 			Lexeme:   "*",
 			Position: token.Position{Line: 1, Col: 8},
 		},
-		Right: &LiteralExpression{Value: 2},
+		Right: &ast.LiteralExpression{Value: 2},
 	}
 
 	PrintAST(expr)

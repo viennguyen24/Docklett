@@ -12,11 +12,14 @@ We design error recovery to be "panic and synchronize" mode. Essentially, discar
 
 https://teaching.idallen.com/cst8152/98w/panic_mode.html
 
+The final output should be a tree of statement nodes not evaluated yet
+
 */
 
 package parser
 
 import (
+	"docklett/compiler/ast"
 	"docklett/compiler/token"
 )
 
@@ -54,6 +57,8 @@ func (p *Parser) checkCurrentToken(tokenType token.TokenType) bool {
 	return p.getCurrentToken().Type == tokenType
 }
 
+// This is a simple check whether the current token matches one of the following type
+// It is mostly for branching conditions to handle different rules, and does not threaten to break the program if return false
 func (p *Parser) matchCurrentToken(tokenTypes ...token.TokenType) bool {
 	for _, tokenType := range tokenTypes {
 		if p.checkCurrentToken(tokenType) {
@@ -64,6 +69,8 @@ func (p *Parser) matchCurrentToken(tokenTypes ...token.TokenType) bool {
 	return false
 }
 
+// This consumes current token (and returns it) and move on to next token if current token matches the tokenType
+// This is used during certain rules to make sure a correct token is in position, hence the error raising
 func (p *Parser) consumeMatchingToken(tokenType token.TokenType, errorMessage string) (token.Token, error) {
 	if p.checkCurrentToken(tokenType) {
 		return p.advanceToken(), nil
@@ -90,4 +97,17 @@ func (p *Parser) synchronize() {
 		}
 		p.advanceToken()
 	}
+}
+
+func (p *Parser) Parse(tokens []token.Token) ([]ast.Statement, error) {
+	p.Tokens = tokens
+	var statements []ast.Statement
+	for !p.isAtEnd() {
+		stmt, err := p.statement()
+		if err != nil {
+			return nil, err
+		}
+		statements = append(statements, stmt)
+	}
+	return statements, nil
 }

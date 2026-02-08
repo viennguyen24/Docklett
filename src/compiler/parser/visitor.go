@@ -23,9 +23,16 @@
 
 package parser
 
+import "docklett/compiler/ast"
+
 type ExpressionVisitor interface {
-	VisitLiteral(literal *LiteralExpression) (any, error)
-	VisitBinary(binary *Binary) (any, error)
-	VisitUnary(unary *Unary) (any, error)
-	VisitGrouping(grouping *Grouping) (any, error)
+	VisitLiteral(literal *ast.LiteralExpression) (any, error)
+	VisitBinary(binary *ast.Binary) (any, error)
+	VisitUnary(unary *ast.Unary) (any, error)
+	VisitGrouping(grouping *ast.Grouping) (any, error)
+}
+
+type StatementVisitor interface {
+	VisitStatement(statement *ast.Statement) (any, error)
+	VisitExpressionStatement(expressionStatement *ast.ExpressionStatement) (any, error)
 }

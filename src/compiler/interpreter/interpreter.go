@@ -1,188 +1,49 @@
 /*
-   Type Coercion Rules:
-   1. All numeric operations promote to float64
-   2. String concatenation with + only
-   3. Equality works across all types
-   4. Comparison (>, <) only for numbers and strings (lexicographic)
-   5. Logical operators (!, &&, ||) only for booleans
+Interpreter walks the statement trees produced by the parser and then "operates" on the instruction thus actually doing something
+to the data structure we have been building
+
+For expression, we need to evaluate them to produce a final value
+For a statement, we need to execute them to produce an effect
+
 */
 
 package interpreter
 
 import (
-	"docklett/compiler/parser"
-	"docklett/compiler/token"
-	"fmt"
+	"docklett/compiler/ast"
 )
 
-// compile time check to ensure that Interpreter implements ExpressionVisitor
-var _ parser.ExpressionVisitor = (*Interpreter)(nil)
+// Compile time check to ensure that Interpreter implements StatementVisitor
+var _ ast.StatementVisitor = (*Interpreter)(nil)
 
-type Interpreter struct {
-}
-
-func (i *Interpreter) isTruthy(value any) bool {
-	switch v := value.(type) {
-	case bool:
-		return v
-	case nil:
-		return false
-	case int:
-		return v != 0
-	case float64:
-		return v != 0.0
-	case string:
-		return v != ""
-	default:
-		// Unknown types are truthy if not nil
-		return value != nil
-	}
-}
-
-func (i *Interpreter) evaluate(expr parser.Expression) (any, error) {
-	return expr.Accept(i)
-}
-
-func (i *Interpreter) VisitLiteral(literal *parser.LiteralExpression) (any, error) {
-	return literal.Value, nil
-}
-
-func (i *Interpreter) VisitUnary(unary *parser.Unary) (any, error) {
-	right, err := i.evaluate(unary.Right)
-	if err != nil {
-		return nil, err
-	}
-
-	switch unary.Operator.Type {
-	case token.NEGATE:
-		b, ok := right.(bool)
-		if !ok {
-			return nil, i.error(unary, fmt.Sprintf("negate operation requires boolean, got %T", right))
+/*
+Main entry point to start interpreting
+*/
+func (i *Interpreter) interpret(statements []ast.Statement) error {
+	for _, stmt := range statements {
+		// statements produce an effect rather than value, so for now we ignore the return value and perform the instruction in place
+		_, err := i.execute(stmt)
+		if err != nil {
+			return err
 		}
-		return !b, nil
-
-	case token.SUBTRACT:
-		switch v := right.(type) {
-		case int:
-			return -v, nil
-		case float64:
-			return -v, nil
-		default:
-			return nil, i.error(unary, fmt.Sprintf("subtraction operation requires number, got %T", right))
-		}
-
-	default:
-		return nil, i.error(unary, fmt.Sprintf("unknown unary operator: %v", unary.Operator.Lexeme))
 	}
+	return nil
 }
 
-func (i *Interpreter) VisitGrouping(grouping *parser.Grouping) (any, error) {
-	return i.evaluate(grouping.Expression)
+// Call the corresponding handling logic base on type of statement
+// This is just an entry point for the interpreter to implement its specific logic for a statement
+func (i *Interpreter) execute(statement ast.Statement) (any, error) {
+	return statement.Accept(i)
 }
 
-func (i *Interpreter) VisitBinary(binary *parser.Binary) (any, error) {
-	left, lErr := binary.Left.Accept(i)
-	if lErr != nil {
-		return nil, lErr
-	}
-
-	right, rErr := binary.Right.Accept(i)
-	if rErr != nil {
-		return nil, rErr
-	}
-
-	op := binary.Operator.Type
-
-	lNum, lErr := toFloat(left)
-	rNum, rErr := toFloat(right)
-	// if either is float, implicitly cast result to float
-	if lErr == nil && rErr == nil {
-		return i.executeNumeric(binary, lNum, rNum, op)
-	}
-
-	// only operate on both string operands
-	lStr, lOk := left.(string)
-	rStr, rOk := right.(string)
-	if lOk && rOk {
-		return i.executeString(binary, lStr, rStr, op)
-	}
-
-	// ony support equality on nil
-	if left == nil || right == nil {
-		return i.executeNil(binary, op)
-	}
-
-	return nil, i.error(binary, fmt.Sprintf("mismatched or unsupported types: %T and %T", left, right))
+func (i *Interpreter) VisitStatement(statement *ast.Statement) (any, error) {
+	return nil, nil
 }
 
-// Only allow operations on numeric types (float, number or float and number)
-func (i *Interpreter) executeNumeric(expr parser.Expression, l float64, r float64, op token.TokenType) (any, error) {
-	switch op {
-	case token.ADD:
-		return l + r, nil
-	case token.SUBTRACT:
-		return l - r, nil
-	case token.MULTI:
-		return l * r, nil
-	case token.DIVIDE:
-		if r == 0.0 {
-			return nil, i.error(expr, "division by zero")
-		}
-		return l / r, nil
-	case token.EQUAL:
-		return l == r, nil
-	case token.UNEQUAL:
-		return l != r, nil
-	case token.GREATER:
-		return l > r, nil
-	case token.GTE:
-		return l >= r, nil
-	case token.LESS:
-		return l < r, nil
-	case token.LTE:
-		return l <= r, nil
-	}
-	return nil, i.error(expr, fmt.Sprintf("unrecognized numeric operator %v", op))
+func (i *Interpreter) VisitExpressionStatement(expressionStatement *ast.ExpressionStatement) (any, error) {
+	return i.evaluate(expressionStatement.Expression)
 }
 
-func (i *Interpreter) executeString(expr parser.Expression, l string, r string, op token.TokenType) (any, error) {
-	switch op {
-	case token.ADD:
-		return l + r, nil // Concatenation
-	case token.EQUAL:
-		return l == r, nil
-	case token.UNEQUAL:
-		return l != r, nil
-	// comparing string base on lexicographic order
-	case token.GREATER:
-		return l > r, nil
-	case token.LESS:
-		return l < r, nil
-	}
-	return nil, i.error(expr, fmt.Sprintf("invalid string operator: %v", op))
-}
-
-func (i *Interpreter) executeNil(expr parser.Expression, op token.TokenType) (any, error) {
-	switch op {
-	case token.EQUAL:
-		return true, nil
-	case token.UNEQUAL:
-		return false, nil
-	}
-	return nil, i.error(expr, "nil only supports equality checks")
-}
-
-func toFloat(val any) (float64, error) {
-	switch v := val.(type) {
-	case int:
-		return float64(v), nil
-	case float64:
-		return v, nil
-	default:
-		return 0, fmt.Errorf("type error: cannot convert %T to float64", val)
-	}
-}
-
-func (i *Interpreter) Interpret(expr parser.Expression) (any, error) {
-	return i.evaluate(expr)
+func (i *Interpreter) VisitVarDeclareStatement(varDeclareStatement *ast.VarDeclareStatement) (any, error) {
+	return nil, nil
 }

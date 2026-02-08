@@ -1,13 +1,13 @@
 package interpreter
 
 import (
-	"docklett/compiler/parser"
+	"docklett/compiler/ast"
 	"fmt"
 	"os"
 )
 
 type InterpreterError struct {
-	Expression parser.Expression
+	Expression ast.Expression
 	Message    string
 }
 
@@ -19,7 +19,7 @@ func (e *InterpreterError) Error() string {
 	return e.Message
 }
 
-func (i *Interpreter) error(expr parser.Expression, message string) *InterpreterError {
+func (i *Interpreter) error(expr ast.Expression, message string) *InterpreterError {
 	err := &InterpreterError{
 		Message:    message,
 		Expression: expr,
@@ -29,15 +29,15 @@ func (i *Interpreter) error(expr parser.Expression, message string) *Interpreter
 }
 
 // Extract line number from expression's first token
-func getExpressionLine(expr parser.Expression) int {
+func getExpressionLine(expr ast.Expression) int {
 	switch e := expr.(type) {
-	case *parser.LiteralExpression:
+	case *ast.LiteralExpression:
 		return e.Token.Position.Line
-	case *parser.Unary:
+	case *ast.Unary:
 		return e.Operator.Position.Line
-	case *parser.Binary:
+	case *ast.Binary:
 		return e.Operator.Position.Line
-	case *parser.Grouping:
+	case *ast.Grouping:
 		return getExpressionLine(e.Expression)
 	default:
 		// just a defensive check. this is normally dead code assuming we handle all expression types above
