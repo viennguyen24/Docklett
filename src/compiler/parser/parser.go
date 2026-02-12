@@ -20,6 +20,7 @@ package parser
 
 import (
 	"docklett/compiler/ast"
+	compileError "docklett/compiler/error"
 	"docklett/compiler/token"
 )
 
@@ -69,13 +70,12 @@ func (p *Parser) matchCurrentToken(tokenTypes ...token.TokenType) bool {
 	return false
 }
 
-// This consumes current token (and returns it) and move on to next token if current token matches the tokenType
-// This is used during certain rules to make sure a correct token is in position, hence the error raising
+// Consumes current token and returns it if it matches tokenType, otherwise returns error
 func (p *Parser) consumeMatchingToken(tokenType token.TokenType, errorMessage string) (token.Token, error) {
 	if p.checkCurrentToken(tokenType) {
 		return p.advanceToken(), nil
 	}
-	return token.Token{}, p.error(p.getCurrentToken(), errorMessage)
+	return token.Token{}, compileError.NewParseError(p.getCurrentToken(), errorMessage)
 }
 
 // Synchronize is only called in the event we encounter an error token.
@@ -103,7 +103,7 @@ func (p *Parser) Parse(tokens []token.Token) ([]ast.Statement, error) {
 	p.Tokens = tokens
 	var statements []ast.Statement
 	for !p.isAtEnd() {
-		stmt, err := p.statement()
+		stmt, err := p.declaration()
 		if err != nil {
 			return nil, err
 		}

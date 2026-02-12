@@ -8,6 +8,7 @@ package parser
 
 import (
 	"docklett/compiler/ast"
+	compileError "docklett/compiler/error"
 	"docklett/compiler/token"
 )
 
@@ -41,7 +42,7 @@ func (p *Parser) primary() (ast.Expression, error) {
 		}
 		return &ast.Grouping{Expression: expression}, nil
 	}
-	return nil, p.error(p.getCurrentToken(), "Unexpected token "+p.getCurrentToken().Lexeme)
+	return nil, compileError.NewParseError(p.getCurrentToken(), "Unexpected token "+p.getCurrentToken().Lexeme)
 }
 
 // An unary just takes the immediate value returned from primary and mutate that
@@ -123,6 +124,40 @@ func (p *Parser) equality() (ast.Expression, error) {
 		}
 		expr = &ast.Binary{Left: expr, Operator: operator, Right: right}
 	}
+	return expr, nil
+}
+
+// In an assignment, the left operand is just an identifier that needs to be binded to a value, so we don't consider it an epxression.
+// We use Token for the left side (or identifier) instead of Expression like a Binary expression
+func (p *Parser) assignment() (ast.Expression, error) {
+	// The left side of an assigment might be a complicated expression, e.g node().head.prev = abc
+	// Since parser consumes token in sequence, we don't know if we are evaluating an expresison to a value, or figuring out an identifier (l-value) to a value (r-value)
+	expr, err := p.equality()
+	if err != nil {
+		return nil, err
+	}
+
+	// assign token means signal for assignment
+	if p.matchCurrentToken(token.ASSIGN) {
+		equals := p.getPreviousToken()
+
+		// recursively parse the right-hand side (r-value)
+		// This allows chained assignment: a = b = c = 10;
+		value, err := p.assignment()
+		if err != nil {
+			return nil, err
+		}
+
+		// The left-hand side (expr) must be a valid assignment target (l-value) that can hold a binding to a value
+		// For now, only Variable expressions are valid targets.
+		if variable, ok := expr.(*ast.VariableExpression); ok {
+			name := variable.Name
+			return &ast.Assignment{Name: name, Value: value}, nil
+		}
+
+		return nil, compileError.NewParseError(equals, "Unable to perform assignment on expression "+equals.Lexeme)
+	}
+
 	return expr, nil
 }
 

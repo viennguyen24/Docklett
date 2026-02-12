@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	compileError "docklett/compiler/error"
 	"docklett/compiler/token"
 	"docklett/compiler/util"
 	"unicode"
@@ -165,7 +166,7 @@ func (s *Scanner) scanToken() (tokenType token.TokenType, literal any, err error
 		if s.nextMatch('&') {
 			return token.AND, nil, nil
 		}
-		return token.ILLEGAL, nil, fmt.Errorf("unexpected char: &")
+		return token.ILLEGAL, nil, compileError.NewScanError(s.line, s.start+1, s.SourceName, "unexpected char: &")
 	case '(':
 		return token.LPAREN, nil, nil
 	case ')':
@@ -198,7 +199,7 @@ func (s *Scanner) scanToken() (tokenType token.TokenType, literal any, err error
 		if unicode.IsLetter(lexeme) {
 			return s.scanKeywordsAndIdentifierTokens()
 		}
-		return token.ILLEGAL, nil, fmt.Errorf("unexpected char: %q", lexeme)
+		return token.ILLEGAL, nil, compileError.NewScanError(s.line, s.start+1, s.SourceName, fmt.Sprintf("unexpected char: %q", lexeme))
 	}
 }
 
@@ -229,7 +230,7 @@ func (s *Scanner) scanStringToken() (tokenType token.TokenType, literal string, 
 		strLiteral += string(s.advanceChar())
 	}
 	if s.isAtEnd() {
-		return token.ILLEGAL, "", fmt.Errorf("unterminated string literal")
+		return token.ILLEGAL, "", compileError.NewScanError(s.line, s.start+1, s.SourceName, "unterminated string literal")
 	}
 	s.advanceChar() // consume closing "
 	return token.STRING, strLiteral, nil
@@ -306,7 +307,7 @@ func (s *Scanner) scanDocklettToken() (tokenType token.TokenType, literal any, e
 	if found {
 		return docklettTokenType, nil, nil
 	}
-	return token.ILLEGAL, nil, fmt.Errorf("unexpected Docklett token: %q", string(firstChar)+text)
+	return token.ILLEGAL, nil, compileError.NewScanError(s.line, s.start+1, s.SourceName, fmt.Sprintf("unexpected Docklett token: %q", string(firstChar)+text))
 }
 
 // Accumulates alphanumeric chars, checks Docklett keywords first if flag set, then Docker keywords (delegates to scanDockerToken), else returns identifier

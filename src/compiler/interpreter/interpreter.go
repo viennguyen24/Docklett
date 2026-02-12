@@ -16,9 +16,7 @@ import (
 // Compile time check to ensure that Interpreter implements StatementVisitor
 var _ ast.StatementVisitor = (*Interpreter)(nil)
 
-/*
-Main entry point to start interpreting
-*/
+// Main entry point to start interpreting
 func (i *Interpreter) interpret(statements []ast.Statement) error {
 	for _, stmt := range statements {
 		// statements produce an effect rather than value, so for now we ignore the return value and perform the instruction in place
@@ -40,10 +38,27 @@ func (i *Interpreter) VisitStatement(statement *ast.Statement) (any, error) {
 	return nil, nil
 }
 
+// VisitExpressionStatement evaluates an expression to perform a certain effect on the program's state.
+// The expression itself (like an assignment x = 5) may reference variables that must exist,
+// e.g: x = 5, i = i + 1, functionCall()
 func (i *Interpreter) VisitExpressionStatement(expressionStatement *ast.ExpressionStatement) (any, error) {
 	return i.evaluate(expressionStatement.Expression)
 }
 
-func (i *Interpreter) VisitVarDeclareStatement(varDeclareStatement *ast.VarDeclareStatement) (any, error) {
+// VisitVarStatement creates a new variable in the environment and adds a binding of an identifier to a value.
+// Used for variable declaration, so the variable doesn't need to exist already,
+// e.g: var x = 5, var y (initialized to nil)
+func (i *Interpreter) VisitVarStatement(varStatement *ast.VariableStatement) (any, error) {
+	var value any = nil
+
+	if varStatement.Initializer != nil {
+		val, err := i.evaluate(varStatement.Initializer)
+		if err != nil {
+			return nil, err
+		}
+		value = val
+	}
+
+	i.Environment.Define(varStatement.Name.Lexeme, value)
 	return nil, nil
 }

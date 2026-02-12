@@ -14,11 +14,12 @@ func (es *ExpressionStatement) Accept(visitor StatementVisitor) (any, error) {
 	return visitor.VisitExpressionStatement(es)
 }
 
-type VarDeclareStatement struct {
-	Identifier token.Token
-	Expression Expression
+// e.g @SET x = 10 + 20
+type VariableStatement struct {
+	Name        token.Token // the variable "name"
+	Initializer Expression  // the expression that gives the variable a value
 }
 
-func (vds *VarDeclareStatement) Accept(visitor StatementVisitor) (any, error) {
-	return visitor.VisitVarDeclareStatement(vds)
+func (varStmt *VariableStatement) Accept(visitor StatementVisitor) (any, error) {
+	return visitor.VisitVarStatement(varStmt)
 }

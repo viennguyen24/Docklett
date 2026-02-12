@@ -11,6 +11,7 @@ package interpreter
 
 import (
 	"docklett/compiler/ast"
+	runtimeError "docklett/compiler/error"
 	"docklett/compiler/token"
 	"fmt"
 )
@@ -19,6 +20,7 @@ import (
 var _ ast.ExpressionVisitor = (*Interpreter)(nil)
 
 type Interpreter struct {
+	Environment Environment
 }
 
 func (i *Interpreter) isTruthy(value any) bool {
@@ -46,11 +48,11 @@ func (i *Interpreter) evaluate(expr ast.Expression) (any, error) {
 	return expr.Accept(i)
 }
 
-func (i *Interpreter) VisitLiteral(literal *ast.LiteralExpression) (any, error) {
+func (i *Interpreter) VisitLiteralExpr(literal *ast.LiteralExpression) (any, error) {
 	return literal.Value, nil
 }
 
-func (i *Interpreter) VisitUnary(unary *ast.Unary) (any, error) {
+func (i *Interpreter) VisitUnaryExpr(unary *ast.Unary) (any, error) {
 	right, err := i.evaluate(unary.Right)
 	if err != nil {
 		return nil, err
@@ -60,7 +62,7 @@ func (i *Interpreter) VisitUnary(unary *ast.Unary) (any, error) {
 	case token.NEGATE:
 		b, ok := right.(bool)
 		if !ok {
-			return nil, i.error(unary, fmt.Sprintf("negate operation requires boolean, got %T", right))
+			return nil, runtimeError.NewInterpreterError(unary, fmt.Sprintf("negate operation requires boolean, got %T", right))
 		}
 		return !b, nil
 
@@ -71,19 +73,19 @@ func (i *Interpreter) VisitUnary(unary *ast.Unary) (any, error) {
 		case float64:
 			return -v, nil
 		default:
-			return nil, i.error(unary, fmt.Sprintf("subtraction operation requires number, got %T", right))
+			return nil, runtimeError.NewInterpreterError(unary, fmt.Sprintf("subtraction operation requires number, got %T", right))
 		}
 
 	default:
-		return nil, i.error(unary, fmt.Sprintf("unknown unary operator: %v", unary.Operator.Lexeme))
+		return nil, runtimeError.NewInterpreterError(unary, fmt.Sprintf("unknown unary operator: %v", unary.Operator.Lexeme))
 	}
 }
 
-func (i *Interpreter) VisitGrouping(grouping *ast.Grouping) (any, error) {
+func (i *Interpreter) VisitGroupingExpr(grouping *ast.Grouping) (any, error) {
 	return i.evaluate(grouping.Expression)
 }
 
-func (i *Interpreter) VisitBinary(binary *ast.Binary) (any, error) {
+func (i *Interpreter) VisitBinaryExpr(binary *ast.Binary) (any, error) {
 	left, lErr := binary.Left.Accept(i)
 	if lErr != nil {
 		return nil, lErr
@@ -115,7 +117,7 @@ func (i *Interpreter) VisitBinary(binary *ast.Binary) (any, error) {
 		return i.executeNil(binary, op)
 	}
 
-	return nil, i.error(binary, fmt.Sprintf("mismatched or unsupported types: %T and %T", left, right))
+	return nil, runtimeError.NewInterpreterError(binary, fmt.Sprintf("mismatched or unsupported types: %T and %T", left, right))
 }
 
 // Only allow operations on numeric types (float, number or float and number)
@@ -129,7 +131,7 @@ func (i *Interpreter) executeNumeric(expr ast.Expression, l float64, r float64, 
 		return l * r, nil
 	case token.DIVIDE:
 		if r == 0.0 {
-			return nil, i.error(expr, "division by zero")
+			return nil, runtimeError.NewInterpreterError(expr, "division by zero")
 		}
 		return l / r, nil
 	case token.EQUAL:
@@ -145,7 +147,7 @@ func (i *Interpreter) executeNumeric(expr ast.Expression, l float64, r float64, 
 	case token.LTE:
 		return l <= r, nil
 	}
-	return nil, i.error(expr, fmt.Sprintf("unrecognized numeric operator %v", op))
+	return nil, runtimeError.NewInterpreterError(expr, fmt.Sprintf("unrecognized numeric operator %v", op))
 }
 
 func (i *Interpreter) executeString(expr ast.Expression, l string, r string, op token.TokenType) (any, error) {
@@ -162,7 +164,7 @@ func (i *Interpreter) executeString(expr ast.Expression, l string, r string, op 
 	case token.LESS:
 		return l < r, nil
 	}
-	return nil, i.error(expr, fmt.Sprintf("invalid string operator: %v", op))
+	return nil, runtimeError.NewInterpreterError(expr, fmt.Sprintf("invalid string operator: %v", op))
 }
 
 func (i *Interpreter) executeNil(expr ast.Expression, op token.TokenType) (any, error) {
@@ -172,7 +174,7 @@ func (i *Interpreter) executeNil(expr ast.Expression, op token.TokenType) (any, 
 	case token.UNEQUAL:
 		return false, nil
 	}
-	return nil, i.error(expr, "nil only supports equality checks")
+	return nil, runtimeError.NewInterpreterError(expr, "nil only supports equality checks")
 }
 
 func toFloat(val any) (float64, error) {
@@ -188,4 +190,17 @@ func toFloat(val any) (float64, error) {
 
 func (i *Interpreter) Interpret(expr ast.Expression) (any, error) {
 	return i.evaluate(expr)
+}
+
+func (i *Interpreter) VisitVariableExpr(variable *ast.VariableExpression) (any, error) {
+	return i.Environment.Get(variable.Name), nil
+}
+
+func (i *Interpreter) VisitAssignmentExpr(assignment *ast.Assignment) (any, error) {
+	val, err := i.evaluate(assignment.Value)
+	if err != nil {
+		return nil, err
+	}
+	i.Environment.Assign(assignment.Name, val)
+	return val, nil
 }
