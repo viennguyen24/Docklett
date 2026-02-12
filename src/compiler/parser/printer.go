@@ -55,14 +55,14 @@ func (tp *TreePrinter) formatToken(tok token.Token) string {
 	return base
 }
 
-func (tp *TreePrinter) VisitLiteral(literal *ast.LiteralExpression) (any, error) {
+func (tp *TreePrinter) VisitLiteralExpr(literal *ast.LiteralExpression) (any, error) {
 	result := "LiteralExpression\n"
 	prefix := tp.getIndent(true, true)
 	result += prefix + fmt.Sprintf("Value: %v\n", literal.Value)
 	return result, nil
 }
 
-func (tp *TreePrinter) VisitBinary(binary *ast.Binary) (any, error) {
+func (tp *TreePrinter) VisitBinaryExpr(binary *ast.Binary) (any, error) {
 	result := "Binary\n"
 
 	prefix := tp.getIndent(false, true)
@@ -91,7 +91,7 @@ func (tp *TreePrinter) VisitBinary(binary *ast.Binary) (any, error) {
 	return result, nil
 }
 
-func (tp *TreePrinter) VisitUnary(unary *ast.Unary) (any, error) {
+func (tp *TreePrinter) VisitUnaryExpr(unary *ast.Unary) (any, error) {
 	result := "Unary\n"
 
 	prefix := tp.getIndent(false, true)
@@ -110,7 +110,7 @@ func (tp *TreePrinter) VisitUnary(unary *ast.Unary) (any, error) {
 	return result, nil
 }
 
-func (tp *TreePrinter) VisitGrouping(grouping *ast.Grouping) (any, error) {
+func (tp *TreePrinter) VisitGroupingExpr(grouping *ast.Grouping) (any, error) {
 	result := "Grouping\n"
 
 	prefix := tp.getIndent(true, true)
@@ -124,6 +124,14 @@ func (tp *TreePrinter) VisitGrouping(grouping *ast.Grouping) (any, error) {
 	tp.isLastChild = tp.isLastChild[:len(tp.isLastChild)-1]
 
 	return result, nil
+}
+
+func (tp *TreePrinter) VisitVariableExpr(variable *ast.VariableExpression) (any, error) {
+	return nil, nil
+}
+
+func (tp *TreePrinter) VisitAssignmentExpr(assignment *ast.Assignment) (any, error) {
+	return nil, nil
 }
 
 func PrintAST(expr ast.Expression) {

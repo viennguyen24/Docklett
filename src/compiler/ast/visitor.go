@@ -1,7 +1,10 @@
 /*
-	Visitor Pattern for AST Traversal
+	We use Visitor Pattern for AST methods.
 
-	The AST is a shared domain between Parser, Interpreter, and other tools.
+	The AST is not a Parser-specific domain, even though the Parser produces it.
+	The Tnterpreter uses it to evaluate expressions as well, so it's an interception between the Parser and Interpreter
+	However, we can't define specific methods for parsing / evaluating in each AST node. This violates single-responsibility (the methods are tied to the component calling the tree node, not the tree it self)
+    and scalability (we would have to modify methods for each node everytime we want to change implementation)
 	The Visitor Pattern allows different operations on the AST without modifying AST node definitions.
 
 	Operations are separated from data structures for better Single Responsibility Principle.
@@ -19,14 +22,16 @@
 package ast
 
 type ExpressionVisitor interface {
-	VisitLiteral(literal *LiteralExpression) (any, error)
-	VisitBinary(binary *Binary) (any, error)
-	VisitUnary(unary *Unary) (any, error)
-	VisitGrouping(grouping *Grouping) (any, error)
+	VisitVariableExpr(variable *VariableExpression) (any, error)
+	VisitLiteralExpr(literal *LiteralExpression) (any, error)
+	VisitBinaryExpr(binary *Binary) (any, error)
+	VisitUnaryExpr(unary *Unary) (any, error)
+	VisitGroupingExpr(grouping *Grouping) (any, error)
+	VisitAssignmentExpr(assignment *Assignment) (any, error)
 }
 
 type StatementVisitor interface {
 	VisitStatement(statement *Statement) (any, error)
 	VisitExpressionStatement(expressionStatement *ExpressionStatement) (any, error)
-	VisitVarDeclareStatement(varDeclareStatement *VarDeclareStatement) (any, error)
+	VisitVarStatement(varDeclareStatement *VariableStatement) (any, error)
 }
