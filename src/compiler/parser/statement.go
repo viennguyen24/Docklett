@@ -61,6 +61,10 @@ func (p *Parser) variableDeclaration() (ast.Statement, error) {
 
 func (p *Parser) statement() (ast.Statement, error) {
 	// Todo: add other statements here
+	// Block statements
+	if p.matchCurrentToken(token.IF, token.FOR) {
+		return p.blockStatement()
+	}
 	return p.expressionStatement()
 }
 
@@ -87,4 +91,17 @@ func (p *Parser) expressionStatement() (ast.Statement, error) {
 		return nil, err
 	}
 	return &ast.ExpressionStatement{Expression: expr}, nil
+}
+
+func (p *Parser) blockStatement() (ast.Statement, error) {
+	var statements []ast.Statement
+	for !(p.isAtEnd() && !p.matchCurrentToken(token.END)) {
+		statement, err := p.statement()
+		if err != nil {
+			return nil, err
+		}
+		statements = append(statements, statement)
+	}
+	p.consumeMatchingToken(token.END, "END directive expected after block declaration.")
+	return &ast.BlockStatement{Statements: statements}, nil
 }

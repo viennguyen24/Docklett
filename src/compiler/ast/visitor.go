@@ -34,4 +34,5 @@ type StatementVisitor interface {
 	VisitStatement(statement *Statement) (any, error)
 	VisitExpressionStatement(expressionStatement *ExpressionStatement) (any, error)
 	VisitVarDeclarationStatement(varDeclareStatement *VariableDeclarationStatement) (any, error)
+	VisitBlockStatement(blockStatement *BlockStatement) (any, error)
 }

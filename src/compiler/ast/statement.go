@@ -81,3 +81,11 @@ type VariableDeclarationStatement struct {
 func (varStmt *VariableDeclarationStatement) Accept(visitor StatementVisitor) (any, error) {
 	return visitor.VisitVarDeclarationStatement(varStmt)
 }
+
+type BlockStatement struct {
+	Statements []Statement
+}
+
+func (blStmt *BlockStatement) Accept(visitor StatementVisitor) (any, error) {
+	return visitor.VisitBlockStatement(blStmt)
+}

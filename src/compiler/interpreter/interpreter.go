@@ -98,3 +98,29 @@ func (i *Interpreter) VisitVarDeclarationStatement(varStatement *ast.VariableDec
 	i.Environment.Define(varStatement.Name.Lexeme, value)
 	return nil, nil
 }
+
+// VisitBlockStatement creates a new child scope and executes every statements within that block.
+// After execution, the scope is discarded and the previous scope is restored.
+func (i *Interpreter) VisitBlockStatement(blStatement *ast.BlockStatement) (any, error) {
+	blockEnvironment := Environment{
+		Map:       make(map[string]any),
+		Enclosing: &i.Environment,
+	}
+	return i.executeBlock(blStatement.Statements, blockEnvironment)
+}
+
+func (i *Interpreter) executeBlock(statements []ast.Statement, environment Environment) (any, error) {
+	// restore environment after executing block
+	previous := i.Environment
+	defer func() { i.Environment = previous }()
+
+	i.Environment = environment
+
+	for _, statement := range statements {
+		_, err := i.execute(statement)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return nil, nil
+}
