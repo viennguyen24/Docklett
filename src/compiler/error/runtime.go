@@ -1,3 +1,17 @@
+/*
+RUNTIME ERRORS occur during program execution (interpretation).
+These errors are detected after successful parsing when the interpreter evaluates expressions
+and executes statements, discovering logical or type errors.
+
+Error Types:
+  - InterpreterError: Execution errors (type mismatches, invalid operations, runtime panics)
+
+EXAMPLES:
+
+	Runtime Error: [line 10] division by zero
+	Runtime Error: [line 15] undefined variable 'x'
+	Runtime Error: [line 20] subtraction operation requires number, got string
+*/
 package error
 
 import (
@@ -60,11 +74,11 @@ func getExpressionLine(expr ast.Expression) int {
 	switch e := expr.(type) {
 	case *ast.LiteralExpression:
 		return e.Token.Position.Line
-	case *ast.Unary:
+	case *ast.UnaryExpression:
 		return e.Operator.Position.Line
-	case *ast.Binary:
+	case *ast.BinaryExpression:
 		return e.Operator.Position.Line
-	case *ast.Grouping:
+	case *ast.GroupingExpression:
 		return getExpressionLine(e.Expression)
 	case *ast.VariableExpression:
 		return e.Name.Position.Line

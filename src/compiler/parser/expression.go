@@ -1,7 +1,32 @@
 /*
-  The following defines all node interfaces for an expression and Recursive Descent Parser implementation to verify that an expression
-  follows Docklett's grammar rules.
-  The syntax rules is defined in the root design folder
+Expression are parsed using recursive descent parsing.
+
+RECURSIVE DESCENT PARSING:
+Each grammar rule becomes a method. Methods call "higher" precedence rules (lower in the call chain).
+Precedence from lowest to highest (call order):
+  expression → assignment → equality → comparison → term → factor → unary → primary
+
+GRAMMAR RULES (from Crafting Interpreters):
+  expression     → assignment
+  assignment     → IDENTIFIER "=" assignment | equality
+  equality       → comparison ( ("==" | "!=") comparison )*
+  comparison     → term ( (">" | ">=" | "<" | "<=") term )*
+  term           → factor ( ("+" | "-") factor )*
+  factor         → unary ( ("*" | "/") unary )*
+  unary          → ("!" | "-") unary | primary
+  primary        → NUMBER | STRING | "true" | "false" | IDENTIFIER | "(" expression ")"
+
+PARSING STRATEGY:
+Each function parses its level and delegates to higher-precedence rules.
+Left-associative operators use iteration: a + b + c → (a + b) + c
+Right-associative operators use recursion: a = b = c → a = (b = c)
+
+EXAMPLE PARSE TREE:
+  Source: (1 + 2) * 3
+  Call chain: expression → ... → term → factor → unary → primary
+  Result: BinaryExpression(GroupingExpression(BinaryExpression(Literal(1), +, Literal(2))), *, Literal(3))
+
+USED BY: Parser.Parse() to build expression AST nodes from token sequences.
 */
 
 package parser
@@ -40,7 +65,7 @@ func (p *Parser) primary() (ast.Expression, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &ast.Grouping{Expression: expression}, nil
+		return &ast.GroupingExpression{Expression: expression}, nil
 	}
 	return nil, compileError.NewParseError(p.getCurrentToken(), "Unexpected token "+p.getCurrentToken().Lexeme)
 }
@@ -54,7 +79,7 @@ func (p *Parser) unary() (ast.Expression, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &ast.Unary{Operator: prev, Right: right}, nil
+		return &ast.UnaryExpression{Operator: prev, Right: right}, nil
 	}
 	return p.primary()
 }
@@ -73,7 +98,7 @@ func (p *Parser) factor() (ast.Expression, error) {
 		if err != nil {
 			return nil, err
 		}
-		expr = &ast.Binary{Left: expr, Operator: operator, Right: right}
+		expr = &ast.BinaryExpression{Left: expr, Operator: operator, Right: right}
 	}
 	return expr, nil
 }
@@ -90,7 +115,7 @@ func (p *Parser) term() (ast.Expression, error) {
 		if err != nil {
 			return nil, err
 		}
-		expr = &ast.Binary{Left: expr, Operator: operator, Right: right}
+		expr = &ast.BinaryExpression{Left: expr, Operator: operator, Right: right}
 	}
 	return expr, nil
 }
@@ -106,7 +131,7 @@ func (p *Parser) comparison() (ast.Expression, error) {
 		if err != nil {
 			return nil, err
 		}
-		expr = &ast.Binary{Left: expr, Operator: operator, Right: right}
+		expr = &ast.BinaryExpression{Left: expr, Operator: operator, Right: right}
 	}
 	return expr, nil
 }
@@ -122,16 +147,15 @@ func (p *Parser) equality() (ast.Expression, error) {
 		if err != nil {
 			return nil, err
 		}
-		expr = &ast.Binary{Left: expr, Operator: operator, Right: right}
+		expr = &ast.BinaryExpression{Left: expr, Operator: operator, Right: right}
 	}
 	return expr, nil
 }
 
-// In an assignment, the left operand is just an identifier that needs to be binded to a value, so we don't consider it an epxression.
-// We use Token for the left side (or identifier) instead of Expression like a Binary expression
+// In an assignment, the left side is just an identifier that needs to be binded to a value, so we don't consider it an epxression.
+// But parser can't know if an identifier, let's say "x" in "x + ...", is an assignment target or expression until it sees "=".
+// So we parse as expression first, then convert to assignment target if "=" found.
 func (p *Parser) assignment() (ast.Expression, error) {
-	// The left side of an assigment might be a complicated expression, e.g node().head.prev = abc
-	// Since parser consumes token in sequence, we don't know if we are evaluating an expresison to a value, or figuring out an identifier (l-value) to a value (r-value)
 	expr, err := p.equality()
 	if err != nil {
 		return nil, err
@@ -152,7 +176,7 @@ func (p *Parser) assignment() (ast.Expression, error) {
 		// For now, only Variable expressions are valid targets.
 		if variable, ok := expr.(*ast.VariableExpression); ok {
 			name := variable.Name
-			return &ast.Assignment{Name: name, Value: value}, nil
+			return &ast.AssignmentExpression{Name: name, Value: value}, nil
 		}
 
 		return nil, compileError.NewParseError(equals, "Unable to perform assignment on expression "+equals.Lexeme)
@@ -161,6 +185,7 @@ func (p *Parser) assignment() (ast.Expression, error) {
 	return expr, nil
 }
 
+// expression is the entry point for parsing any expression.
 func (p *Parser) expression() (ast.Expression, error) {
-	return p.equality()
+	return p.assignment()
 }

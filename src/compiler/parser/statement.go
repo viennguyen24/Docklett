@@ -55,7 +55,7 @@ func (p *Parser) variableDeclaration() (ast.Statement, error) {
 		}
 	}
 
-	return &ast.VariableStatement{Name: identifier, Initializer: expression}, nil
+	return &ast.VariableDeclarationStatement{Name: identifier, Initializer: expression}, nil
 
 }
 

@@ -1,9 +1,15 @@
 /*
-Interpreter walks the statement trees produced by the parser and then "operates" on the instruction thus actually doing something
-to the data structure we have been building
+The interpreter traverses the AST produced by the parser and executes each statement
+to produce side effects (variable assignments, output, etc.).
 
-For expression, we need to evaluate them to produce a final value
-For a statement, we need to execute them to produce an effect
+EVALUATION vs EXECUTION:
+  - Expressions are EVALUATED to produce values
+  - Statements are EXECUTED to produce side effects
+
+EXAMPLE EXECUTION FLOW:
+  Source: @SET x = 5\n  Parse: VariableStatement(Name="x", Initializer=Literal(5))
+  Execute: VisitVarDeclarationStatement → Evaluate initializer → Define in environment
+  Result: Environment.Map["x"] = 5
 
 */
 
@@ -13,7 +19,7 @@ import (
 	"docklett/compiler/ast"
 )
 
-// Compile time check to ensure that Interpreter implements StatementVisitor
+// Compile-time check to ensure Interpreter implements StatementVisitor
 var _ ast.StatementVisitor = (*Interpreter)(nil)
 
 // Main entry point to start interpreting
@@ -34,21 +40,51 @@ func (i *Interpreter) execute(statement ast.Statement) (any, error) {
 	return statement.Accept(i)
 }
 
+// placeholder for the base Statement interface.
 func (i *Interpreter) VisitStatement(statement *ast.Statement) (any, error) {
 	return nil, nil
 }
 
-// VisitExpressionStatement evaluates an expression to perform a certain effect on the program's state.
-// The expression itself (like an assignment x = 5) may reference variables that must exist,
-// e.g: x = 5, i = i + 1, functionCall()
+// VisitExpressionStatement evaluates an expression for its side effects (like assignment).
+// The expression's return value is discarded - we only care about state changes.
+//
+// Functionality:
+//   - Evaluates the wrapped expression
+//   - Discards the resulting value
+//   - Captures side effects (assignments, function calls)
+//
+// This allows expressions to stand alone as statements. Without this, you couldn't write:
+//   - Standalone assignments: x = 5
+//   - Function calls: print("hello")
+//
+// Examples:
+//
+//	Source: x = 10
+//	AST: ExpressionStatement(AssignmentExpression("x", Literal(10)))
+//	Execute: Evaluate assignment → Environment.Assign("x", 10) → Discard return value (10)
+//
+//	Source: 5 + 3  (useless but valid)
+//	AST: ExpressionStatement(BinaryExpression(5, +, 3))
+//	Execute: Evaluate → 8 → Discard result
 func (i *Interpreter) VisitExpressionStatement(expressionStatement *ast.ExpressionStatement) (any, error) {
 	return i.evaluate(expressionStatement.Expression)
 }
 
-// VisitVarStatement creates a new variable in the environment and adds a binding of an identifier to a value.
-// Used for variable declaration, so the variable doesn't need to exist already,
-// e.g: var x = 5, var y (initialized to nil)
-func (i *Interpreter) VisitVarStatement(varStatement *ast.VariableStatement) (any, error) {
+// VisitVarDeclarationStatement creates a new variable binding in the environment.
+// Evaluates the initializer (initial value expression) if present and binds the value to the variable name.
+//
+//   - Evaluates Initializer expression (if not nil)
+//
+//   - Defaults to nil if no initializer provided
+//
+//   - Creates binding in environment via Define()
+//
+//   - Define() never fails (overwrites existing bindings)
+//
+//     @SET x = 5    → VisitVarDeclarationStatement (creates NEW binding)
+//
+//     x = 10        → VisitAssignmentExpr (updates EXISTING binding, fails if undefined)
+func (i *Interpreter) VisitVarDeclarationStatement(varStatement *ast.VariableDeclarationStatement) (any, error) {
 	var value any = nil
 
 	if varStatement.Initializer != nil {

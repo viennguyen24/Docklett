@@ -1,10 +1,13 @@
 /*
-   Type Coercion Rules:
-   1. All numeric operations promote to float64
-   2. String concatenation with + only
-   3. Equality works across all types
-   4. Comparison (>, <) only for numbers and strings (lexicographic)
-   5. Logical operators (!, &&, ||) only for booleans
+Evaluates expression AST nodes to produce runtime values using recursive descent.
+Each Visit method handles one expression type, delegating to child expressions as needed.
+
+TYPE COERCION RULES:
+  1. Numeric operations: promote int → float64 (3 + 2.5 → 5.5)
+  2. String concatenation: + operator only ("hello" + " world")
+  3. Equality: works across all types (5 == 5.0 → true)
+  4. Comparison: numbers and strings only ("a" < "b" uses lexicographic order)
+  5. Logical operators: booleans only (! negation, future: &&, ||)
 */
 
 package interpreter
@@ -16,13 +19,20 @@ import (
 	"fmt"
 )
 
-// compile time check to ensure that Interpreter implements ExpressionVisitor
+// Compile-time check to ensure Interpreter implements ExpressionVisitor
 var _ ast.ExpressionVisitor = (*Interpreter)(nil)
 
 type Interpreter struct {
 	Environment Environment
 }
 
+// isTruthy determines the boolean value of any runtime value (truthiness).
+// Used for conditional logic and boolean coercion.
+//   - bool: returns the boolean value itself
+//   - nil: false
+//   - int/float64: false if zero, true otherwise
+//   - string: false if empty "", true otherwise
+//   - unknown types: true if not nil
 func (i *Interpreter) isTruthy(value any) bool {
 	switch v := value.(type) {
 	case bool:
@@ -41,18 +51,34 @@ func (i *Interpreter) isTruthy(value any) bool {
 	}
 }
 
-/*
-A generic method to
-*/
 func (i *Interpreter) evaluate(expr ast.Expression) (any, error) {
 	return expr.Accept(i)
 }
 
+// VisitLiteralExpr evaluates a literal expression by returning its stored value.
+// This is the terminal case in expression evaluation - no further recursion needed.
 func (i *Interpreter) VisitLiteralExpr(literal *ast.LiteralExpression) (any, error) {
 	return literal.Value, nil
 }
 
-func (i *Interpreter) VisitUnaryExpr(unary *ast.Unary) (any, error) {
+// VisitUnaryExpr evaluates unary operators (prefix operators) by evaluating operand then applying operator.
+//
+// Supported Operators:
+//
+//	! (NEGATE): boolean negation, requires boolean operand
+//	- (SUBTRACT): numeric negation, requires int or float64 operand
+//
+// Examples:
+//
+//	Source: !true
+//	Evaluate: Right = true → Apply ! → Result: false
+//
+//	Source: -5
+//	Evaluate: Right = 5 → Apply - → Result: -5
+//
+//	Source: -"hello"  (type error)
+//	Error: "subtraction operation requires number, got string"
+func (i *Interpreter) VisitUnaryExpr(unary *ast.UnaryExpression) (any, error) {
 	right, err := i.evaluate(unary.Right)
 	if err != nil {
 		return nil, err
@@ -81,11 +107,37 @@ func (i *Interpreter) VisitUnaryExpr(unary *ast.Unary) (any, error) {
 	}
 }
 
-func (i *Interpreter) VisitGroupingExpr(grouping *ast.Grouping) (any, error) {
+// VisitGroupingExpr evaluates a grouped expression by evaluating its wrapped expression.
+// Grouping exists only for precedence control during parsing - evaluation just unwraps it.
+//
+// Example:
+//
+//	Source: (1 + 2) * 3
+//	Evaluate: Unwrap grouping → Evaluate 1 + 2 → 3 → Continue with * 3
+func (i *Interpreter) VisitGroupingExpr(grouping *ast.GroupingExpression) (any, error) {
 	return i.evaluate(grouping.Expression)
 }
 
-func (i *Interpreter) VisitBinaryExpr(binary *ast.Binary) (any, error) {
+// VisitBinaryExpr evaluates binary operators by evaluating both operands then applying the operator.
+// Implements type-specific behavior for numeric, string, and nil operations.
+//
+// Type Dispatch Priority:
+//  1. Both operands numeric → executeNumeric() (promotes to float64)
+//  2. Both operands string → executeString()
+//  3. Either operand nil → executeNil() (equality only)
+//  4. Otherwise → Error: "mismatched or unsupported types"
+//
+// Examples:
+//
+//	Source: 3 + 2
+//	Evaluate: 3, 2 → Both numeric → executeNumeric(3.0, 2.0, +) → 5.0
+//
+//	Source: "hello" + " world"
+//	Evaluate: "hello", " world" → Both strings → executeString(..., +) → "hello world"
+//
+//	Source: 5 + "hello"  (type error)
+//	Error: "mismatched or unsupported types: int and string"
+func (i *Interpreter) VisitBinaryExpr(binary *ast.BinaryExpression) (any, error) {
 	left, lErr := binary.Left.Accept(i)
 	if lErr != nil {
 		return nil, lErr
@@ -188,15 +240,33 @@ func toFloat(val any) (float64, error) {
 	}
 }
 
-func (i *Interpreter) Interpret(expr ast.Expression) (any, error) {
-	return i.evaluate(expr)
-}
-
+// VisitVariableExpr evaluates a variable reference by looking up its value in the environment.
+//   - Looks up variable name in environment's symbol table
+//   - Returns the bound value if found
+//   - Panics with RuntimeError if undefined
+//
+// Example:
+//
+//	Source: x + 5  (where @SET x = 10 was executed earlier)
+//	Evaluate: Get("x") → 10
+//
+//	Source: y  (y was never declared)
+//	Panic: "Runtime Error: [line 10] undefined variable 'y'"
 func (i *Interpreter) VisitVariableExpr(variable *ast.VariableExpression) (any, error) {
 	return i.Environment.Get(variable.Name), nil
 }
 
-func (i *Interpreter) VisitAssignmentExpr(assignment *ast.Assignment) (any, error) {
+// VisitAssignmentExpr evaluates an assignment by evaluating the value and updating the environment.
+// Returns the assigned value (enables chained assignments: a = b = c).
+//
+// Examples:
+//
+//	Source: x = 20  (where @SET x = 10 was executed earlier)
+//	Evaluate: Value = 20 → Assign("x", 20) → Return 20
+//
+//	Source: a = b = 10  (chained assignment)
+//	Evaluate: b = 10 returns 10 → a = 10 returns 10
+func (i *Interpreter) VisitAssignmentExpr(assignment *ast.AssignmentExpression) (any, error) {
 	val, err := i.evaluate(assignment.Value)
 	if err != nil {
 		return nil, err

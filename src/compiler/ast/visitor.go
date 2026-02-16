@@ -24,14 +24,14 @@ package ast
 type ExpressionVisitor interface {
 	VisitVariableExpr(variable *VariableExpression) (any, error)
 	VisitLiteralExpr(literal *LiteralExpression) (any, error)
-	VisitBinaryExpr(binary *Binary) (any, error)
-	VisitUnaryExpr(unary *Unary) (any, error)
-	VisitGroupingExpr(grouping *Grouping) (any, error)
-	VisitAssignmentExpr(assignment *Assignment) (any, error)
+	VisitBinaryExpr(binary *BinaryExpression) (any, error)
+	VisitUnaryExpr(unary *UnaryExpression) (any, error)
+	VisitGroupingExpr(grouping *GroupingExpression) (any, error)
+	VisitAssignmentExpr(assignment *AssignmentExpression) (any, error)
 }
 
 type StatementVisitor interface {
 	VisitStatement(statement *Statement) (any, error)
 	VisitExpressionStatement(expressionStatement *ExpressionStatement) (any, error)
-	VisitVarStatement(varDeclareStatement *VariableStatement) (any, error)
+	VisitVarDeclarationStatement(varDeclareStatement *VariableDeclarationStatement) (any, error)
 }

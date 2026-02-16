@@ -62,7 +62,7 @@ func (tp *TreePrinter) VisitLiteralExpr(literal *ast.LiteralExpression) (any, er
 	return result, nil
 }
 
-func (tp *TreePrinter) VisitBinaryExpr(binary *ast.Binary) (any, error) {
+func (tp *TreePrinter) VisitBinaryExpr(binary *ast.BinaryExpression) (any, error) {
 	result := "Binary\n"
 
 	prefix := tp.getIndent(false, true)
@@ -91,7 +91,7 @@ func (tp *TreePrinter) VisitBinaryExpr(binary *ast.Binary) (any, error) {
 	return result, nil
 }
 
-func (tp *TreePrinter) VisitUnaryExpr(unary *ast.Unary) (any, error) {
+func (tp *TreePrinter) VisitUnaryExpr(unary *ast.UnaryExpression) (any, error) {
 	result := "Unary\n"
 
 	prefix := tp.getIndent(false, true)
@@ -110,7 +110,7 @@ func (tp *TreePrinter) VisitUnaryExpr(unary *ast.Unary) (any, error) {
 	return result, nil
 }
 
-func (tp *TreePrinter) VisitGroupingExpr(grouping *ast.Grouping) (any, error) {
+func (tp *TreePrinter) VisitGroupingExpr(grouping *ast.GroupingExpression) (any, error) {
 	result := "Grouping\n"
 
 	prefix := tp.getIndent(true, true)
@@ -130,7 +130,7 @@ func (tp *TreePrinter) VisitVariableExpr(variable *ast.VariableExpression) (any,
 	return nil, nil
 }
 
-func (tp *TreePrinter) VisitAssignmentExpr(assignment *ast.Assignment) (any, error) {
+func (tp *TreePrinter) VisitAssignmentExpr(assignment *ast.AssignmentExpression) (any, error) {
 	return nil, nil
 }
 
@@ -146,9 +146,9 @@ func PrintAST(expr ast.Expression) {
 
 func DemoPrinter() {
 	// (5 + 3) * 2
-	expr := &ast.Binary{
-		Left: &ast.Grouping{
-			Expression: &ast.Binary{
+	expr := &ast.BinaryExpression{
+		Left: &ast.GroupingExpression{
+			Expression: &ast.BinaryExpression{
 				Left: &ast.LiteralExpression{Value: 5},
 				Operator: token.Token{
 					Type:     token.ADD,
