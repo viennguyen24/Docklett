@@ -22,6 +22,7 @@ import (
 	"docklett/compiler/ast"
 	compileError "docklett/compiler/error"
 	"docklett/compiler/token"
+	"errors"
 )
 
 // recursive descent parser
@@ -78,9 +79,9 @@ func (p *Parser) consumeMatchingToken(tokenType token.TokenType, errorMessage st
 	return token.Token{}, compileError.NewParseError(p.getCurrentToken(), errorMessage)
 }
 
-// Synchronize is only called in the event we encounter an error token.
+// Synchronize discards tokens until a safe parsing boundary (newline or keyword).
 func (p *Parser) synchronize() {
-	// Ignore the error token. This has already been reported from Parser.error()
+	// Ignore the error token. This has already been reported
 	p.advanceToken()
 	for !p.isAtEnd() {
 		currentToken := p.getCurrentToken()
@@ -99,15 +100,24 @@ func (p *Parser) synchronize() {
 	}
 }
 
+// Parse processes the token stream into a list of statement AST nodes.
+// Collects all parse errors via synchronize recovery and returns them joined at the end.
 func (p *Parser) Parse(tokens []token.Token) ([]ast.Statement, error) {
 	p.Tokens = tokens
 	var statements []ast.Statement
+	var parseErrors []error
+
 	for !p.isAtEnd() {
 		stmt, err := p.declaration()
 		if err != nil {
-			return nil, err
+			parseErrors = append(parseErrors, err)
+			continue
 		}
 		statements = append(statements, stmt)
+	}
+
+	if len(parseErrors) > 0 {
+		return nil, errors.Join(parseErrors...)
 	}
 	return statements, nil
 }

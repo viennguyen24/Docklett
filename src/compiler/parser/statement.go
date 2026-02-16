@@ -14,16 +14,23 @@ import (
 	"docklett/compiler/token"
 )
 
-// Todo: add synchronize
-// declaration is just a wrapper to priorizie variableDeclaration over regular statements
+// declaration wraps statement parsing with panic-mode error recovery.
+// On encountering error token, synchronize to skip to a safe token boundary, then returns the error up to Parse() which collects it.
 func (p *Parser) declaration() (ast.Statement, error) {
-	isVarDeclaration := p.matchCurrentToken(token.SET)
+	var stmt ast.Statement
+	var err error
 
-	if isVarDeclaration {
-		return p.variableDeclaration()
+	if p.matchCurrentToken(token.SET) {
+		stmt, err = p.variableDeclaration()
+	} else {
+		stmt, err = p.statement()
 	}
 
-	return p.statement()
+	if err != nil {
+		p.synchronize()
+		return nil, err
+	}
+	return stmt, nil
 }
 
 // varDecl parses variable declarations in the form "var IDENTIFIER = expression;".
@@ -95,13 +102,16 @@ func (p *Parser) expressionStatement() (ast.Statement, error) {
 
 func (p *Parser) blockStatement() (ast.Statement, error) {
 	var statements []ast.Statement
-	for !(p.isAtEnd() && !p.matchCurrentToken(token.END)) {
-		statement, err := p.statement()
+	for !p.checkCurrentToken(token.END) && !p.isAtEnd() {
+		stmt, err := p.declaration()
 		if err != nil {
 			return nil, err
 		}
-		statements = append(statements, statement)
+		statements = append(statements, stmt)
 	}
-	p.consumeMatchingToken(token.END, "END directive expected after block declaration.")
+	_, err := p.consumeMatchingToken(token.END, "END directive expected after block declaration.")
+	if err != nil {
+		return nil, err
+	}
 	return &ast.BlockStatement{Statements: statements}, nil
 }
