@@ -1,14 +1,24 @@
 /*
-Environment manages the runtime state of variables during program execution.
-Each variable name (identifier) is bound to a value in the environment's symbol table.
+Environment manages variable bindings using a parent-pointer tree (scope chain).
+Each environment represents one scope and links to its immediately enclosing scope.
+
+SCOPE CHAIN LOOKUP:
+Variables are resolved by walking the chain from innermost to outermost scope:
+ 1. Check current environment
+ 2. If not found, recursively check parent (Enclosing)
+ 3. If not found in any scope, panic with RuntimeError
 
 EXAMPLES:
-@SET x = 5       → Define("x", 5)
-x                → Get("x") returns 5
-x = 10           → Assign("x", 10)
 
-Currently implements a single global scope. All variables are accessible from anywhere.
-Future: Will support nested scopes (functions, blocks) using parent environment links.
+	@SET x = 5       → Define("x", 5) in current scope
+	x                → Get("x") walks chain: current → parent → ... → global
+	x = 10           → Assign("x", 10) walks chain to find existing binding
+
+SHADOWING:
+Inner scopes can shadow outer variables with the same name:
+
+	var x = "outer";
+	{ var x = "inner"; }  // shadows outer x
 */
 package interpreter
 
@@ -18,35 +28,50 @@ import (
 	"fmt"
 )
 
-// Environment stores variable bindings (name → value mappings) for the interpreter.
-// Implements a symbol table that tracks variable state during program execution.
+// Environment stores variable bindings for one scope level.
+// Forms a linked list (scope chain) via Enclosing pointer to parent scope.
 type Environment struct {
-	Map       map[string]any // Symbol table mapping variable names to runtime values
+	Map       map[string]any // Variables defined in THIS scope only
+	Enclosing *Environment   // Parent scope (nil for global scope)
 }
 
-// Define creates a new variable binding or overwrites an existing one.
-// This operation never fails - it always succeeds in creating/updating the binding.
+// Define creates a new variable in the CURRENT scope (does not walk chain).
+// Allows shadowing: defining a variable that exists in parent scope creates a NEW binding in current scope.
 func (env *Environment) Define(name string, value any) {
 	env.Map[name] = value
 }
 
-// Get retrieves the value bound to a variable name.
-// Creates RuntimeError if trying to retrieve an undefined variable.
+// Get retrieves a variable's value by walking the scope chain.
+// Searches current scope first, then recursively searches parent scopes.
 func (env *Environment) Get(name token.Token) any {
+	// Check current scope first
 	val, ok := env.Map[name.Lexeme]
-	if !ok {
-		runtimeError.PanicRuntimeError(name, fmt.Sprintf("undefined variable '%s'", name.Lexeme))
+	if ok {
+		return val
 	}
-	return val
+
+	// Variable not in current scope - check parent scope
+	if env.Enclosing != nil {
+		return env.Enclosing.Get(name)
+	}
+
+	runtimeError.PanicRuntimeError(name, fmt.Sprintf("undefined variable '%s'", name.Lexeme))
+	return nil // unreachable
 }
 
-// Assign updates the value of an existing variable.
-// Creates RuntimeError if trying to update an undefined variable.
-// This distinction prevents typos: x = 5 fails if x wasn't declared.
+// Assign updates an EXISTING variable by walking the scope chain.
+// Unlike Define, this requires the variable to already exist somewhere in the chain.
 func (env *Environment) Assign(name token.Token, value any) {
+	// Check if variable exists in current scope
 	_, ok := env.Map[name.Lexeme]
 	if ok {
 		env.Map[name.Lexeme] = value
+		return
+	}
+
+	// Variable not in current scope - try parent scope
+	if env.Enclosing != nil {
+		env.Enclosing.Assign(name, value)
 		return
 	}
 	runtimeError.PanicRuntimeError(name, fmt.Sprintf("undefined variable '%s'", name.Lexeme))
