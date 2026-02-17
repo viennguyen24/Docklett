@@ -27,6 +27,7 @@ type ExpressionVisitor interface {
 	VisitBinaryExpr(binary *BinaryExpression) (any, error)
 	VisitUnaryExpr(unary *UnaryExpression) (any, error)
 	VisitGroupingExpr(grouping *GroupingExpression) (any, error)
+	VisitLogicalExpr(logical *LogicalExpression) (any, error)
 	VisitAssignmentExpr(assignment *AssignmentExpression) (any, error)
 }
 

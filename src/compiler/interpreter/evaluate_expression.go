@@ -256,6 +256,30 @@ func (i *Interpreter) VisitVariableExpr(variable *ast.VariableExpression) (any, 
 	return i.Environment.Get(variable.Name), nil
 }
 
+// VisitLogicalExpr implements short-circuit evaluation for and/or operators.
+// Returns the determining operand's value, not a coerced boolean.
+//
+//	"or"  → returns left if truthy, otherwise evaluates and returns right
+//	"and" → returns left if falsy, otherwise evaluates and returns right
+func (i *Interpreter) VisitLogicalExpr(logical *ast.LogicalExpression) (any, error) {
+	left, err := i.evaluate(logical.Left)
+	if err != nil {
+		return nil, err
+	}
+
+	if logical.Operator.Type == token.OR {
+		if i.isTruthy(left) {
+			return left, nil
+		}
+	} else {
+		if !i.isTruthy(left) {
+			return left, nil
+		}
+	}
+
+	return i.evaluate(logical.Right)
+}
+
 // VisitAssignmentExpr evaluates an assignment by evaluating the value and updating the environment.
 // Returns the assigned value (enables chained assignments: a = b = c).
 //

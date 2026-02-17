@@ -7,6 +7,7 @@ The expression hierarchy from atomic to complex:
 	prefix:   UnaryExpression (-, !)
 	grouped:  GroupingExpression ((expression))
 	binary:   BinaryExpression (+, -, *, /, ==, !=, <, >, <=, >=)
+	logic:    LogicalExpression(or / and)
 	assign:   AssignmentExpression (x = value)
 
 EXAMPLES:
@@ -85,6 +86,19 @@ type BinaryExpression struct {
 
 func (b *BinaryExpression) Accept(visitor ExpressionVisitor) (any, error) {
 	return visitor.VisitBinaryExpr(b)
+}
+
+// LogicalExpression represents short-circuit boolean operators (and / or).
+// Unlike BinaryExpression, the right operand is only evaluated when the left operand
+// doesn't already determine the result (short-circuit evaluation).
+type LogicalExpression struct {
+	Left     Expression  // Left operand, always evaluated
+	Right    Expression  // Right operand, conditionally evaluated
+	Operator token.Token // AND or OR token
+}
+
+func (l *LogicalExpression) Accept(visitor ExpressionVisitor) (any, error) {
+	return visitor.VisitLogicalExpr(l)
 }
 
 // AssignmentExpression represents binding a value to an existing variable (not declaration).

@@ -130,6 +130,35 @@ func (tp *TreePrinter) VisitVariableExpr(variable *ast.VariableExpression) (any,
 	return nil, nil
 }
 
+func (tp *TreePrinter) VisitLogicalExpr(logical *ast.LogicalExpression) (any, error) {
+	result := "Logical\n"
+
+	prefix := tp.getIndent(false, true)
+	result += prefix + "Left: "
+	tp.isLastChild = append(tp.isLastChild, false)
+	leftResult, err := logical.Left.Accept(tp)
+	if err != nil {
+		return nil, err
+	}
+	result += leftResult.(string)
+	tp.isLastChild = tp.isLastChild[:len(tp.isLastChild)-1]
+
+	prefix = tp.getIndent(false, true)
+	result += prefix + "Operator: " + tp.formatToken(logical.Operator) + "\n"
+
+	prefix = tp.getIndent(true, true)
+	result += prefix + "Right: "
+	tp.isLastChild = append(tp.isLastChild, true)
+	rightResult, err := logical.Right.Accept(tp)
+	if err != nil {
+		return nil, err
+	}
+	result += rightResult.(string)
+	tp.isLastChild = tp.isLastChild[:len(tp.isLastChild)-1]
+
+	return result, nil
+}
+
 func (tp *TreePrinter) VisitAssignmentExpr(assignment *ast.AssignmentExpression) (any, error) {
 	return nil, nil
 }
