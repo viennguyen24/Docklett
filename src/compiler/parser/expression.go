@@ -4,11 +4,13 @@ Expression are parsed using recursive descent parsing.
 RECURSIVE DESCENT PARSING:
 Each grammar rule becomes a method. Methods call "higher" precedence rules (lower in the call chain).
 Precedence from lowest to highest (call order):
-  expression → assignment → equality → comparison → term → factor → unary → primary
+  expression → assignment → logic_or → logic_and → equality → comparison → term → factor → unary → primary
 
 GRAMMAR RULES (from Crafting Interpreters):
   expression     → assignment
-  assignment     → IDENTIFIER "=" assignment | equality
+  assignment     → IDENTIFIER "=" assignment | logic_or
+  logic_or       → logic_and ( "or" logic_and )*
+  logic_and      → equality ( "and" equality )*
   equality       → comparison ( ("==" | "!=") comparison )*
   comparison     → term ( (">" | ">=" | "<" | "<=") term )*
   term           → factor ( ("+" | "-") factor )*
@@ -152,11 +154,43 @@ func (p *Parser) equality() (ast.Expression, error) {
 	return expr, nil
 }
 
+func (p *Parser) logicAnd() (ast.Expression, error) {
+	expr, err := p.equality()
+	if err != nil {
+		return nil, err
+	}
+	for p.matchCurrentToken(token.AND) {
+		operator := p.getPreviousToken()
+		right, err := p.equality()
+		if err != nil {
+			return nil, err
+		}
+		expr = &ast.LogicalExpression{Left: expr, Operator: operator, Right: right}
+	}
+	return expr, nil
+}
+
+func (p *Parser) logicOr() (ast.Expression, error) {
+	expr, err := p.logicAnd()
+	if err != nil {
+		return nil, err
+	}
+	for p.matchCurrentToken(token.OR) {
+		operator := p.getPreviousToken()
+		right, err := p.logicAnd()
+		if err != nil {
+			return nil, err
+		}
+		expr = &ast.LogicalExpression{Left: expr, Operator: operator, Right: right}
+	}
+	return expr, nil
+}
+
 // In an assignment, the left side is just an identifier that needs to be binded to a value, so we don't consider it an epxression.
 // But parser can't know if an identifier, let's say "x" in "x + ...", is an assignment target or expression until it sees "=".
 // So we parse as expression first, then convert to assignment target if "=" found.
 func (p *Parser) assignment() (ast.Expression, error) {
-	expr, err := p.equality()
+	expr, err := p.logicOr()
 	if err != nil {
 		return nil, err
 	}
