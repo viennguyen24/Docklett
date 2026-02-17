@@ -52,11 +52,16 @@ func (p *Parser) isAtEnd() bool {
 	return p.getCurrentToken().Type == token.EOF
 }
 
-func (p *Parser) checkCurrentToken(tokenType token.TokenType) bool {
+func (p *Parser) checkCurrentToken(tokenTypes ...token.TokenType) bool {
 	if p.isAtEnd() {
 		return false
 	}
-	return p.getCurrentToken().Type == tokenType
+	for _, tokenType := range tokenTypes {
+		if p.getCurrentToken().Type == tokenType {
+			return true
+		}
+	}
+	return false
 }
 
 // This is a simple check whether the current token matches one of the following type

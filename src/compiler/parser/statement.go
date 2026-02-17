@@ -69,7 +69,10 @@ func (p *Parser) variableDeclaration() (ast.Statement, error) {
 func (p *Parser) statement() (ast.Statement, error) {
 	// Todo: add other statements here
 	// Block statements
-	if p.matchCurrentToken(token.IF, token.FOR) {
+	if p.matchCurrentToken(token.IF) {
+		return p.ifStatement()
+	}
+	if p.matchCurrentToken(token.FOR) {
 		return p.blockStatement()
 	}
 	return p.expressionStatement()
@@ -100,18 +103,89 @@ func (p *Parser) expressionStatement() (ast.Statement, error) {
 	return &ast.ExpressionStatement{Expression: expr}, nil
 }
 
-func (p *Parser) blockStatement() (ast.Statement, error) {
+// statementList parses a sequence of declarations until it encounters one of the
+// provided 'terminator' tokens. This centralizes our "Greedy Collection" logic
+// used by IF, ELSE, and FOR blocks.
+func (p *Parser) collectStatements(terminators ...token.TokenType) ([]ast.Statement, error) {
 	var statements []ast.Statement
-	for !p.checkCurrentToken(token.END) && !p.isAtEnd() {
+
+	// Continue parsing as long as we haven't hit a terminator or the EOF
+	for !p.isAtEnd() && !p.checkCurrentToken(terminators...) {
 		stmt, err := p.declaration()
 		if err != nil {
 			return nil, err
 		}
 		statements = append(statements, stmt)
 	}
-	_, err := p.consumeMatchingToken(token.END, "END directive expected after block declaration.")
+
+	return statements, nil
+}
+
+func (p *Parser) blockStatement() (ast.Statement, error) {
+	statements, err := p.collectStatements()
+	if err != nil {
+		return nil, err
+	}
+	_, err = p.consumeMatchingToken(token.END, "END directive expected after block declaration.")
 	if err != nil {
 		return nil, err
 	}
 	return &ast.BlockStatement{Statements: statements}, nil
+}
+
+func (p *Parser) ifStatement() (ast.Statement, error) {
+	var elseBranch ast.Statement
+	// Parse the boolean guard that decides true vs false path
+	// The IF or ELIF token is already consumed.
+	condition, err := p.expression()
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = p.consumeMatchingToken(token.NLINE, "Expected newline after if condition.")
+	if err != nil {
+		return nil, err
+	}
+
+	// the IfStatement must proactively collect statements until it hits
+	// a control-flow keyword.
+	thenStatements, err := p.collectStatements(token.ELIF, token.ELSE, token.END)
+	if err != nil {
+		return nil, err
+	}
+	thenBranch := &ast.BlockStatement{Statements: thenStatements}
+
+	// If an ELIF is found, we recurse. This creates the 'ElseBranch' link
+	// to a new IfStatement, continuing the chain.
+	if p.matchCurrentToken(token.ELIF) {
+		elseBranch, err = p.ifStatement()
+		if err != nil {
+			return nil, err
+		}
+		// The deeply nested call already consumed the END so we can immediately return.
+		return &ast.IfStatement{Condition: condition, ThenBranch: thenBranch, ElseBranch: elseBranch}, nil
+	}
+
+	// ELSE: collect all statements in the false-path and group them into a single block
+	// If an ELSE is found, we collect the final "catch-all" block.
+	if p.matchCurrentToken(token.ELSE) {
+		_, err = p.consumeMatchingToken(token.NLINE, "Expected newline after ELSE.")
+		if err != nil {
+			return nil, err
+		}
+
+		elseStatements, err := p.collectStatements(token.END)
+		if err != nil {
+			return nil, err
+		}
+		elseBranch = &ast.BlockStatement{Statements: elseStatements}
+	}
+
+	// Every conditional chain (no matter how many ELIFs) must end with exactly one 'END'.
+	_, err = p.consumeMatchingToken(token.END, "END directive expected after if block.")
+	if err != nil {
+		return nil, err
+	}
+
+	return &ast.IfStatement{Condition: condition, ThenBranch: thenBranch, ElseBranch: elseBranch}, nil
 }

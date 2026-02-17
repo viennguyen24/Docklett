@@ -82,10 +82,32 @@ func (varStmt *VariableDeclarationStatement) Accept(visitor StatementVisitor) (a
 	return visitor.VisitVarDeclarationStatement(varStmt)
 }
 
+// BlockStatement wraps a list of statements into a single Statement node.
 type BlockStatement struct {
 	Statements []Statement
 }
 
 func (blStmt *BlockStatement) Accept(visitor StatementVisitor) (any, error) {
 	return visitor.VisitBlockStatement(blStmt)
+}
+
+// IfStatement represents a conditional branch in this structure: IF <Condition> THEN ... ELSE ...
+// THEN contains statements in the true branch, and ELSE contains statments in the false one.
+// ELIF is not a separate node type — it becomes a nested IfStatement linked as ElseBranch.
+// Every if/elif/else chain is closed by a single END token.
+//  1. Recursive Branching: Instead of a flat list of ELIFs, we treat ELIF as
+//     nesting a new IfStatement into the 'ElseBranch' of the previous one.
+//     This creates a linked-list behavior for evaluation.
+//  2. Explicit Scoping: Since our grammar lacks curly braces {}, we have to explicitly find the start of each Block and BlockStatement only finds the end.
+//     The IfStatement is responsible for identifying its own statement boundaries. It treats
+//     everything between the condition and the next keyword (ELIF/ELSE/END)
+//     as a logical "Then" block.
+type IfStatement struct {
+	Condition  Expression      // Boolean guard — determines which branch executes
+	ThenBranch *BlockStatement // Instructions to run when Condition is true
+	ElseBranch Statement       // A link to the next IfStatement (ELIF) or a BlockStatement (ELSE).
+}
+
+func (iStmt *IfStatement) Accept(visitor StatementVisitor) (any, error) {
+	return visitor.VisitIfStatement(iStmt)
 }

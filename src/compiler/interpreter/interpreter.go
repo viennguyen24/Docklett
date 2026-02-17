@@ -124,3 +124,17 @@ func (i *Interpreter) executeBlock(statements []ast.Statement, environment Envir
 	}
 	return nil, nil
 }
+
+func (i *Interpreter) VisitIfStatement(iStmt *ast.IfStatement) (any, error) {
+	condition, err := i.evaluate(iStmt.Condition)
+	if err != nil {
+		return nil, err
+	}
+	if i.isTruthy(condition) {
+		_, err := i.execute(iStmt.ThenBranch)
+		return nil, err
+	} else {
+		_, err := i.execute(iStmt.ElseBranch)
+		return nil, err
+	}
+}
