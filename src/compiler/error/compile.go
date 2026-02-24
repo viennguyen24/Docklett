@@ -2,6 +2,9 @@
 COMPILE-TIME ERRORS occur during source code analysis (scanning and parsing).
 These errors are detected before any code execution and indicate syntax or lexical problems.
 
+We will pivot the entire compiler to use Compile Time error. Our Compiler is only responsible for building a correct LLB state,
+and the Docker engine will be handling execution. As such all errors in compiler will be compile time and error in Docker engine build will be run-time
+
 Error Types:
   - ScanError: Lexical analysis errors (unknown characters, malformed tokens)
   - ParseError: Syntax analysis errors (unexpected tokens, grammar violations)
@@ -82,4 +85,37 @@ func NewParseError(tok token.Token, message string) *ParseError {
 		Token:   tok,
 		Message: message,
 	}
+}
+
+// TranslatorError represents AST-to-LLB translation errors
+type TranslatorError struct {
+	Line    int
+	Message string
+}
+
+func (e *TranslatorError) Error() string {
+	if e.Line > 0 {
+		return fmt.Sprintf("Compile Error: [line %d] %s", e.Line, e.Message)
+	}
+	return fmt.Sprintf("Compile Error: %s", e.Message)
+}
+
+func (e *TranslatorError) GetLine() int {
+	return e.Line
+}
+
+func (e *TranslatorError) GetLocation() string {
+	return fmt.Sprintf("line %d", e.Line)
+}
+
+func NewTranslatorError(line int, message string) *TranslatorError {
+	return &TranslatorError{
+		Line:    line,
+		Message: message,
+	}
+}
+
+// PanicTranslatorError panics with a translator compile error
+func PanicTranslatorError(line int, message string) {
+	panic(NewTranslatorError(line, message))
 }
