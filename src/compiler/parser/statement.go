@@ -74,7 +74,7 @@ func (p *Parser) statement() (ast.Statement, error) {
 		return p.ifStatement()
 	}
 	if p.matchCurrentToken(token.FOR) {
-		return p.blockStatement()
+		return p.forStatement()
 	}
 	return p.expressionStatement()
 }
@@ -96,6 +96,47 @@ func (p *Parser) dockerStatement() (ast.Statement, error) {
 	}
 
 	return &ast.DockerStatement{Keyword: keyword, Args: args.Lexeme}, nil
+}
+
+// forStatement parses: @FOR IDENTIFIER IN iterable NLINE body @END
+// The FOR token is already consumed by statement().
+// Iterable can be an array literal [a, b, c] or a range(start, end) call.
+func (p *Parser) forStatement() (ast.Statement, error) {
+	target, err := p.consumeMatchingToken(token.IDENTIFIER, "Expected loop variable after @FOR.")
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = p.consumeMatchingToken(token.IN, "Expected IN after loop variable.")
+	if err != nil {
+		return nil, err
+	}
+
+	iterable, err := p.expression()
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = p.consumeMatchingToken(token.NLINE, "Expected newline after for loop header.")
+	if err != nil {
+		return nil, err
+	}
+
+	bodyStatements, err := p.collectStatements(token.END)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = p.consumeMatchingToken(token.END, "Expected @END after for loop body.")
+	if err != nil {
+		return nil, err
+	}
+
+	return &ast.ForStatement{
+		Target:   target,
+		Iterable: iterable,
+		Body:     &ast.BlockStatement{Statements: bodyStatements},
+	}, nil
 }
 
 // We need a separate expressionStatement to wrap expression, because some operations are expressions that we want to execute as standalone statements.

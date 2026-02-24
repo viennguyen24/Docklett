@@ -39,3 +39,11 @@ func (t *Translator) VisitLogicalExpr(logical *ast.LogicalExpression) (any, erro
 func (t *Translator) VisitAssignmentExpr(assignment *ast.AssignmentExpression) (any, error) {
 	return nil, nil
 }
+
+func (t *Translator) VisitArrayLiteralExpr(array *ast.ArrayLiteralExpression) (any, error) {
+	return nil, nil
+}
+
+func (t *Translator) VisitRangeExpr(rangeExpr *ast.RangeExpression) (any, error) {
+	return nil, nil
+}

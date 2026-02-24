@@ -130,3 +130,30 @@ type DockerStatement struct {
 func (ds *DockerStatement) Accept(visitor StatementVisitor) (any, error) {
 	return visitor.VisitDockerStatement(ds)
 }
+
+// ForStatement is Docklett's Pythonic for loop: @FOR var IN iterable ... @END
+// The loop variable (Target) is bound in the current scope and rebound on each iteration.
+// After the loop completes, the target variable is removed from the scope.
+//
+// Supported iterables:
+//   - ArrayLiteralExpression: @FOR pkg IN ["curl", "git"] ... @END
+//   - RangeExpression:        @FOR i IN range(0, 5) ... @END
+//
+// The translator unrolls the loop at compile time — each iteration produces
+// its own set of LLB operations with Target bound to the current element.
+//
+// Example:
+//
+//	Source:  @FOR pkg IN ["curl", "git"]
+//	          RUN apt-get install ${pkg}
+//	        @END
+//	AST:    ForStatement{Target: "pkg", Iterable: ArrayLiteralExpr, Body: BlockStatement}
+type ForStatement struct {
+	Target   token.Token // loop variable identifier
+	Iterable Expression  // ArrayLiteralExpression or RangeExpression
+	Body     *BlockStatement
+}
+
+func (fs *ForStatement) Accept(visitor StatementVisitor) (any, error) {
+	return visitor.VisitForStatement(fs)
+}

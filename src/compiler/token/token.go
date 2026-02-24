@@ -57,6 +57,7 @@ const (
 	END
 	TRUE
 	FALSE
+	RANGE // built-in function keyword for range(start, end) or range(start, end, step)
 
 	// Docker instruction tokens
 	DOCKER_KEYWORD // instruction verb: FROM, RUN, COPY, ENV, etc.
@@ -97,6 +98,7 @@ var DocklettTokenKeywords = map[string]TokenType{
 	"END":   END,
 	"TRUE":  TRUE,
 	"FALSE": FALSE,
+	"range": RANGE,
 }
 
 var TokenTypeNames = map[TokenType]string{
@@ -139,6 +141,7 @@ var TokenTypeNames = map[TokenType]string{
 	END:            "END",
 	TRUE:           "TRUE",
 	FALSE:          "FALSE",
+	RANGE:          "RANGE",
 	DOCKER_KEYWORD: "DOCKER_KEYWORD",
 	DOCKER_ARGS:    "DOCKER_ARGS",
 	EOF:            "EOF",

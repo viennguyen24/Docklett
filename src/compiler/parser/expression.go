@@ -53,8 +53,20 @@ func (p *Parser) primary() (ast.Expression, error) {
 		prev := p.getPreviousToken()
 		return &ast.LiteralExpression{Value: prev.Literal, Token: prev}, nil
 	}
+
+	// array literal: [expr, expr, ...]
+	if p.matchCurrentToken(token.LBRACKET) {
+		return p.arrayLiteral()
+	}
+
+	// range(start, end) or range(start, end, step)
+	if p.matchCurrentToken(token.RANGE) {
+		return p.rangeExpression()
+	}
+
+	// identifier: variable reference
 	if p.matchCurrentToken(token.IDENTIFIER) {
-		return &ast.LiteralExpression{Value: p.getPreviousToken().Lexeme, Token: p.getPreviousToken()}, nil
+		return &ast.VariableExpression{Name: p.getPreviousToken()}, nil
 	}
 
 	// If token is an opening parenthesis, the next tokens must form a new expression followed by a closing parenthesis token
@@ -70,6 +82,73 @@ func (p *Parser) primary() (ast.Expression, error) {
 		return &ast.GroupingExpression{Expression: expression}, nil
 	}
 	return nil, compileError.NewParseError(p.getCurrentToken(), "Unexpected token "+p.getCurrentToken().Lexeme)
+}
+
+// arrayLiteral parses: [ expression ("," expression)* ]
+// The opening LBRACKET is already consumed by primary().
+func (p *Parser) arrayLiteral() (ast.Expression, error) {
+	bracket := p.getPreviousToken()
+	var elements []ast.Expression
+
+	// parse elements: each iteration reads one expression, then expects either "," or "]"
+	for !p.checkCurrentToken(token.RBRACKET) {
+		elem, err := p.expression()
+		if err != nil {
+			return nil, err
+		}
+		elements = append(elements, elem)
+
+		// trailing comma is optional before "]"
+		if !p.matchCurrentToken(token.COMMA) {
+			break
+		}
+	}
+
+	_, err := p.consumeMatchingToken(token.RBRACKET, "Expected ']' after array elements.")
+	if err != nil {
+		return nil, err
+	}
+	return &ast.ArrayLiteralExpression{Bracket: bracket, Elements: elements}, nil
+}
+
+// rangeExpression parses: range(start, end) or range(start, end, step)
+// The RANGE token is already consumed by primary().
+func (p *Parser) rangeExpression() (ast.Expression, error) {
+	rangeTok := p.getPreviousToken()
+
+	_, err := p.consumeMatchingToken(token.LPAREN, "Expected '(' after range.")
+	if err != nil {
+		return nil, err
+	}
+
+	start, err := p.expression()
+	if err != nil {
+		return nil, err
+	}
+	_, err = p.consumeMatchingToken(token.COMMA, "Expected ',' after range start.")
+	if err != nil {
+		return nil, err
+	}
+
+	end, err := p.expression()
+	if err != nil {
+		return nil, err
+	}
+
+	// optional third argument: step
+	var step ast.Expression
+	if p.matchCurrentToken(token.COMMA) {
+		step, err = p.expression()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	_, err = p.consumeMatchingToken(token.RPAREN, "Expected ')' after range arguments.")
+	if err != nil {
+		return nil, err
+	}
+	return &ast.RangeExpression{Token: rangeTok, Start: start, End: end, Step: step}, nil
 }
 
 // An unary just takes the immediate value returned from primary and mutate that

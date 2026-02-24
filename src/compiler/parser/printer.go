@@ -163,6 +163,14 @@ func (tp *TreePrinter) VisitAssignmentExpr(assignment *ast.AssignmentExpression)
 	return nil, nil
 }
 
+func (tp *TreePrinter) VisitArrayLiteralExpr(array *ast.ArrayLiteralExpression) (any, error) {
+	return nil, nil
+}
+
+func (tp *TreePrinter) VisitRangeExpr(rangeExpr *ast.RangeExpression) (any, error) {
+	return nil, nil
+}
+
 func PrintAST(expr ast.Expression) {
 	printer := NewTreePrinter()
 	result, err := expr.Accept(printer)

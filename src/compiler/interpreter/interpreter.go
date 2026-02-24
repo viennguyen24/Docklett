@@ -143,3 +143,18 @@ func (i *Interpreter) VisitIfStatement(iStmt *ast.IfStatement) (any, error) {
 func (i *Interpreter) VisitDockerStatement(ds *ast.DockerStatement) (any, error) {
 	return nil, nil
 }
+
+// VisitForStatement is a no-op stub; for loops are handled by the Translator
+func (i *Interpreter) VisitForStatement(fs *ast.ForStatement) (any, error) {
+	return nil, nil
+}
+
+// VisitArrayLiteralExpr is a no-op stub
+func (i *Interpreter) VisitArrayLiteralExpr(array *ast.ArrayLiteralExpression) (any, error) {
+	return nil, nil
+}
+
+// VisitRangeExpr is a no-op stub
+func (i *Interpreter) VisitRangeExpr(rangeExpr *ast.RangeExpression) (any, error) {
+	return nil, nil
+}

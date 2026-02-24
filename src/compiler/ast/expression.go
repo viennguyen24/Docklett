@@ -123,3 +123,45 @@ type AssignmentExpression struct {
 func (a *AssignmentExpression) Accept(visitor ExpressionVisitor) (any, error) {
 	return visitor.VisitAssignmentExpr(a)
 }
+
+// ArrayLiteralExpression represents an inline list of expressions.
+// Used as a ForStatement iterable: @FOR pkg IN ["curl", "git", "vim"]
+//
+// Example:
+//
+//	Source:  ["curl", "git"]
+//	AST:    ArrayLiteralExpression{Elements: [LiteralExpr("curl"), LiteralExpr("git")]}
+type ArrayLiteralExpression struct {
+	Bracket  token.Token  // opening [ token for error reporting
+	Elements []Expression // ordered list of element expressions
+}
+
+func (a *ArrayLiteralExpression) Accept(visitor ExpressionVisitor) (any, error) {
+	return visitor.VisitArrayLiteralExpr(a)
+}
+
+// RangeExpression represents a range() call for generating integer sequences at compile time.
+// Used as a ForStatement iterable: @FOR i IN range(0, 5)
+//
+// Supported forms:
+//   - range(start, end)        → [start, start+1, ..., end-1]
+//   - range(start, end, step)  → [start, start+step, ..., <end]
+//
+// All arguments must be integer expressions evaluable at compile time.
+// Step defaults to 1 when omitted (nil). Step of 0 is a compile-time error.
+//
+// Examples:
+//
+//	range(0, 5)      → [0, 1, 2, 3, 4]
+//	range(0, 10, 2)  → [0, 2, 4, 6, 8]
+//	range(5, 0, -1)  → [5, 4, 3, 2, 1]
+type RangeExpression struct {
+	Token token.Token // RANGE keyword token for error reporting
+	Start Expression  // inclusive lower bound
+	End   Expression  // exclusive upper bound
+	Step  Expression  // nil → step of 1
+}
+
+func (r *RangeExpression) Accept(visitor ExpressionVisitor) (any, error) {
+	return visitor.VisitRangeExpr(r)
+}

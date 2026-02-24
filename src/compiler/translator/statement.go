@@ -6,6 +6,7 @@ package translator
 
 import (
 	"docklett/compiler/ast"
+	"fmt"
 )
 
 // Compile-time check to ensure Translator implements StatementVisitor
@@ -90,4 +91,37 @@ func (t *Translator) VisitIfStatement(stmt *ast.IfStatement) (any, error) {
 // Delegates to translateDocker for keyword-specific LLB graph construction.
 func (t *Translator) VisitDockerStatement(stmt *ast.DockerStatement) (any, error) {
 	return nil, t.translateDocker(stmt)
+}
+
+// VisitForStatement unrolls the loop at compile time.
+// This is just a placeholder implementation, TODO is look up compiler design for looping
+// Evaluates the iterable (array literal or range), then for each element:
+//  1. Binds the target variable to the element value
+//  2. Executes the body (producing LLB nodes)
+//  3. Unbinds the target after the loop completes
+func (t *Translator) VisitForStatement(stmt *ast.ForStatement) (any, error) {
+	iterVal, err := t.evaluateExpression(stmt.Iterable)
+	if err != nil {
+		return nil, err
+	}
+
+	// the iterable must evaluate to a []any slice
+	elements, ok := iterVal.([]any)
+	if !ok {
+		return nil, fmt.Errorf("[line %d] for loop iterable must be an array or range, got %T",
+			stmt.Target.Line, iterVal)
+	}
+
+	for i, elem := range elements {
+		if i >= t.maxLoopIter {
+			return nil, fmt.Errorf("[line %d] for loop exceeded maximum iteration limit (%d)",
+				stmt.Target.Line, t.maxLoopIter)
+		}
+		t.env.Define(stmt.Target.Lexeme, elem)
+		if _, err := t.execute(stmt.Body); err != nil {
+			return nil, err
+		}
+	}
+	t.env.Delete(stmt.Target.Lexeme)
+	return nil, nil
 }

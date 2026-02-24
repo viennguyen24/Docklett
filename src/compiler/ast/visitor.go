@@ -29,6 +29,8 @@ type ExpressionVisitor interface {
 	VisitGroupingExpr(grouping *GroupingExpression) (any, error)
 	VisitLogicalExpr(logical *LogicalExpression) (any, error)
 	VisitAssignmentExpr(assignment *AssignmentExpression) (any, error)
+	VisitArrayLiteralExpr(array *ArrayLiteralExpression) (any, error)
+	VisitRangeExpr(rangeExpr *RangeExpression) (any, error)
 }
 
 type StatementVisitor interface {
@@ -38,4 +40,5 @@ type StatementVisitor interface {
 	VisitBlockStatement(blockStatement *BlockStatement) (any, error)
 	VisitIfStatement(ifStatement *IfStatement) (any, error)
 	VisitDockerStatement(dockerStatement *DockerStatement) (any, error)
+	VisitForStatement(forStatement *ForStatement) (any, error)
 }
