@@ -111,3 +111,22 @@ type IfStatement struct {
 func (iStmt *IfStatement) Accept(visitor StatementVisitor) (any, error) {
 	return visitor.VisitIfStatement(iStmt)
 }
+
+// DockerStatement represents a single vanilla Docker instruction.
+// The scanner splits each Docker line into DOCKER_KEYWORD + DOCKER_ARGS,
+// and the parser combines them into this structured node.
+//
+// Example:
+//
+//	Source: FROM ubuntu:22.04
+//	AST:   DockerStatement{Keyword: Token("FROM"), Args: "ubuntu:22.04"}
+//
+// The Translator dispatches on Keyword.Lexeme to determine which LLB operation to construct.
+type DockerStatement struct {
+	Keyword token.Token // instruction verb: FROM, RUN, COPY, ENV, WORKDIR, etc.
+	Args    string      // raw argument text after the keyword, whitespace-trimmed
+}
+
+func (ds *DockerStatement) Accept(visitor StatementVisitor) (any, error) {
+	return visitor.VisitDockerStatement(ds)
+}

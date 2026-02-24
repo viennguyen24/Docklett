@@ -89,8 +89,10 @@ func tokenTypeName(t token.TokenType) string {
 		return "TRUE"
 	case token.FALSE:
 		return "FALSE"
-	case token.DLINE:
-		return "DLINE"
+	case token.DOCKER_KEYWORD:
+		return "DOCKER_KEYWORD"
+	case token.DOCKER_ARGS:
+		return "DOCKER_ARGS"
 	case token.NLINE:
 		return "NLINE"
 	case token.EOF:

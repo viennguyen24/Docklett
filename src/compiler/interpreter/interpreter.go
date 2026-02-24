@@ -138,3 +138,8 @@ func (i *Interpreter) VisitIfStatement(iStmt *ast.IfStatement) (any, error) {
 		return nil, err
 	}
 }
+
+// VisitDockerStatement is a no-op stub; Docker instructions are handled by the Translator
+func (i *Interpreter) VisitDockerStatement(ds *ast.DockerStatement) (any, error) {
+	return nil, nil
+}

@@ -15,13 +15,16 @@ import (
 )
 
 // declaration wraps statement parsing with panic-mode error recovery.
-// On encountering error token, synchronize to skip to a safe token boundary, then returns the error up to Parse() which collects it.
+// Checks for Docklett directives (@SET), Docker instructions (FROM, RUN, etc.),
+// then falls through to general statement parsing.
 func (p *Parser) declaration() (ast.Statement, error) {
 	var stmt ast.Statement
 	var err error
 
 	if p.matchCurrentToken(token.SET) {
 		stmt, err = p.variableDeclaration()
+	} else if p.matchCurrentToken(token.DOCKER_KEYWORD) {
+		stmt, err = p.dockerStatement()
 	} else {
 		stmt, err = p.statement()
 	}
@@ -67,8 +70,6 @@ func (p *Parser) variableDeclaration() (ast.Statement, error) {
 }
 
 func (p *Parser) statement() (ast.Statement, error) {
-	// Todo: add other statements here
-	// Block statements
 	if p.matchCurrentToken(token.IF) {
 		return p.ifStatement()
 	}
@@ -76,6 +77,25 @@ func (p *Parser) statement() (ast.Statement, error) {
 		return p.blockStatement()
 	}
 	return p.expressionStatement()
+}
+
+// dockerStatement parses DOCKER_KEYWORD DOCKER_ARGS NLINE
+// The DOCKER_KEYWORD token is already consumed by declaration().
+// Combines the keyword and its args into a single DockerStatement AST node.
+func (p *Parser) dockerStatement() (ast.Statement, error) {
+	keyword := p.getPreviousToken()
+
+	args, err := p.consumeMatchingToken(token.DOCKER_ARGS, "Expected arguments after Docker keyword.")
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = p.consumeMatchingToken(token.NLINE, "Expected newline after Docker instruction.")
+	if err != nil {
+		return nil, err
+	}
+
+	return &ast.DockerStatement{Keyword: keyword, Args: args.Lexeme}, nil
 }
 
 // We need a separate expressionStatement to wrap expression, because some operations are expressions that we want to execute as standalone statements.

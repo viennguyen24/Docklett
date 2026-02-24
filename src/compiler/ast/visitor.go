@@ -37,4 +37,5 @@ type StatementVisitor interface {
 	VisitVarDeclarationStatement(varDeclareStatement *VariableDeclarationStatement) (any, error)
 	VisitBlockStatement(blockStatement *BlockStatement) (any, error)
 	VisitIfStatement(ifStatement *IfStatement) (any, error)
+	VisitDockerStatement(dockerStatement *DockerStatement) (any, error)
 }

@@ -19,14 +19,15 @@ import (
 )
 
 type Scanner struct {
-	SourcePath string        // filepath of source code
-	SourceName string        // filename of source code
-	Source     string        // actual source code
-	start      int           // first character of current lexeme
-	current    int           // current char in source code
-	line       int           // current line in source code
-	Tokens     []token.Token // list of tokens generated
-	docklett   bool          // flag for whether we are using Docklett extensions
+	SourcePath   string        // filepath of source code
+	SourceName   string        // filename of source code
+	Source       string        // actual source code
+	start        int           // first character of current lexeme
+	current      int           // current char in source code
+	line         int           // current line in source code
+	Tokens       []token.Token // list of tokens generated
+	docklett     bool          // flag for whether we are using Docklett extensions
+	pendingToken *token.Token  // holds queued DOCKER_ARGS token between scan cycles
 }
 
 // Loads a file into the scanner and fills source metadata.
@@ -54,6 +55,12 @@ func (s *Scanner) ScanSource() error {
 	}
 
 	for !s.isAtEnd() {
+		// drain any pending token before scanning new input
+		if s.pendingToken != nil {
+			s.Tokens = append(s.Tokens, *s.pendingToken)
+			s.pendingToken = nil
+		}
+
 		s.start = s.current // begin new lexeme
 		tokenType, literal, err := s.scanToken()
 		if err != nil {
@@ -63,6 +70,12 @@ func (s *Scanner) ScanSource() error {
 			continue
 		}
 		s.addToken(tokenType, literal)
+	}
+
+	// drain final pending token after source is fully consumed
+	if s.pendingToken != nil {
+		s.Tokens = append(s.Tokens, *s.pendingToken)
+		s.pendingToken = nil
 	}
 
 	s.Tokens = append(s.Tokens, token.Token{
@@ -267,21 +280,31 @@ func (s *Scanner) scanNumberToken() (tokenType token.TokenType, literal any, err
 	return token.NUMBER, intLiteral, nil
 }
 
-// Reads chars until newline, tracking last non-space char to detect backslash continuations
-func (s *Scanner) scanDockerToken() (tokenType token.TokenType, literal any, error error) {
+// Reads chars after a Docker keyword until newline, handling backslash continuations.
+// Returns only the argument portion (whitespace-trimmed), not the keyword itself.
+func (s *Scanner) scanDockerArgs() string {
+	// skip whitespace between keyword and args
+	for !s.isAtEnd() {
+		nextChar, _ := util.ReadSingleChar(s.Source, s.current)
+		if nextChar != ' ' && nextChar != '\t' && nextChar != '\r' {
+			break
+		}
+		s.advanceChar()
+	}
+
+	argsStart := s.current
 	var lastNonSpace rune
 	for !s.isAtEnd() {
 		nextChar, _ := util.ReadSingleChar(s.Source, s.current)
 		if nextChar == '\n' {
-			// Dockerfile instruction may span multiple lines using \
-			continued := lastNonSpace == '\\'
-			if continued {
-				s.advanceChar() // consume newline ONLY for continuation
+			// backslash before newline means the instruction continues on the next line
+			if lastNonSpace == '\\' {
+				s.advanceChar() // consume newline for continuation
 				s.line++
 				lastNonSpace = 0
 				continue
 			}
-			// Leave final newline for main scanner to emit NLINE token
+			// leave final newline for main scanner to emit NLINE token
 			break
 		}
 		if nextChar != ' ' && nextChar != '\t' && nextChar != '\r' {
@@ -289,7 +312,7 @@ func (s *Scanner) scanDockerToken() (tokenType token.TokenType, literal any, err
 		}
 		s.advanceChar()
 	}
-	return token.DLINE, nil, nil
+	return strings.TrimSpace(s.Source[argsStart:s.current])
 }
 
 // Accumulates alphanumeric chars into text buffer, then looks up in DocklettTokenKeywords map
@@ -310,7 +333,8 @@ func (s *Scanner) scanDocklettToken() (tokenType token.TokenType, literal any, e
 	return token.ILLEGAL, nil, compileError.NewScanError(s.line, s.start+1, s.SourceName, fmt.Sprintf("unexpected Docklett token: %q", string(firstChar)+text))
 }
 
-// Accumulates alphanumeric chars, checks Docklett keywords first if flag set, then Docker keywords (delegates to scanDockerToken), else returns identifier
+// Accumulates alphanumeric chars, checks Docklett keywords first if flag set,
+// then Docker keywords (queues DOCKER_ARGS as pending), else returns identifier.
 func (s *Scanner) scanKeywordsAndIdentifierTokens() (tokenType token.TokenType, literal any, error error) {
 	text := string(s.Source[s.start])
 	for !s.isAtEnd() { // read until space or non-letter/digit
@@ -327,10 +351,20 @@ func (s *Scanner) scanKeywordsAndIdentifierTokens() (tokenType token.TokenType, 
 		}
 	}
 
-	// if this is a Dockerfile raw line, this entire line will be a token
+	// if this is a Docker keyword, emit DOCKER_KEYWORD now and queue DOCKER_ARGS for next cycle
 	_, found := token.DockerTokenKeywords[strings.ToUpper(text)]
 	if found {
-		return s.scanDockerToken()
+		argsText := s.scanDockerArgs()
+		s.pendingToken = &token.Token{
+			Type:   token.DOCKER_ARGS,
+			Lexeme: argsText,
+			Position: token.Position{
+				Line: s.line,
+				File: s.SourceName,
+				Col:  s.current + 1,
+			},
+		}
+		return token.DOCKER_KEYWORD, nil, nil
 	}
 
 	return token.IDENTIFIER, text, nil
