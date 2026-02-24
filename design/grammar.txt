@@ -1,31 +1,37 @@
 program        → declaration* EOF
 
 declaration    → varDecl
+               | dockerStmt
                | statement
 
-varDecl        → "@SET" IDENTIFIER ( "=" expression )? ";"
+varDecl        → "@SET" IDENTIFIER ( "=" expression )? NEWLINE
 
 statement      → exprStmt
-               | block
                | ifStmt
                | forStmt
 
-exprStmt       → expression ";"
-block          → "{" declaration* "}"
-ifStmt         → "if" "(" expression ")" statement ( "else" statement )?
-forStmt        → "for" "(" ( varDecl | exprStmt | ";" )
-                           expression? ";"
-                           expression? ")" statement
+exprStmt       → expression NEWLINE
+dockerStmt     → DOCKER_KEYWORD DOCKER_ARGS NEWLINE
+ifStmt         → "@IF" expression NEWLINE declaration*
+                 ( "@ELIF" expression NEWLINE declaration* )*
+                 ( "@ELSE" NEWLINE declaration* )?
+                 "@END"
+forStmt        → "@FOR" IDENTIFIER "IN" expression NEWLINE
+                           declaration* "@END"
 
 expression     → assignment
 assignment     → IDENTIFIER "=" assignment
-               | equality
+               | logic_or
+logic_or       → logic_and ( "or" logic_and )*
+logic_and      → equality ( "and" equality )*
 equality       → comparison ( ( "!=" | "==" ) comparison )*
 comparison     → term ( ( ">" | ">=" | "<" | "<=" ) term )*
 term           → factor ( ( "-" | "+" ) factor )*
 factor         → unary ( ( "/" | "*" ) unary )*
 unary          → ( "!" | "-" ) unary
                | primary
-primary        → NUMBER | STRING | "true" | "false" | "nil"
+primary        → NUMBER | STRING | "true" | "false"
                | "(" expression ")"
+               | "[" ( expression ( "," expression )* )? "]"
+               | "range" "(" expression "," expression ( "," expression )? ")"
                | IDENTIFIER
