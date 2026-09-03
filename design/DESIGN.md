@@ -1,5 +1,13 @@
 ﻿# Docklett Design Document
 
+> **Superseded.** This file is historical. Source of truth is now at the repo root:
+> - [philosophy.md](../philosophy.md) — design rules / NFRs
+> - [design.md](../design.md) — architecture (compiler → vanilla Dockerfile → `dockerfile2llb`; `# syntax=` UX)
+> - [glossary.md](../glossary.md) — shared terms
+> - [AGENT.md](../AGENT.md) — agent onboarding
+>
+> Outdated relative to the pivot: pipelines that compile **directly to LLB** via an Interpreter/LLB Builder, and examples using `@if` / `{{var}}`. Prefer `@IF` / `${var}` and Dockerfile rewrite + offload as described in root `design.md`.
+
 ## Executive Summary
 
 **Docklett** is a compiler that extends standard Dockerfile syntax with programming language features (variables, conditionals, loops) and compiles them into BuildKit's Low-Level Build (LLB) graph format. The LLB graph is sent directly to Docker's build daemon (BuildKit) for execution, enabling more expressive build definitions while maintaining full compatibility with Docker's build infrastructure.
