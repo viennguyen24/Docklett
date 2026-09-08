@@ -1,0 +1,43 @@
+# Compiler gate only: format, vet, tests. No deploy / image build.
+# Module root is src/ (go.mod). Match local hook intent; CI cannot be --no-verify'd.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: src
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.25.5"
+          # No go.sum yet (stdlib-only module). Pin to go.mod so cache still keys.
+          cache-dependency-path: src/go.mod
+
+      - name: Format
+        run: |
+          # Check-only: gofmt -l lists dirty files; non-empty means fail.
+          # Local hook rewrites with gofmt -w; CI must not mutate.
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "gofmt needed on:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test ./tests/...

@@ -147,6 +147,10 @@ This project uses pre-commit hooks to automatically run `go fmt` and `go vet` be
 git commit --no-verify
 ```
 
+### Continuous Integration
+
+Pushes and pull requests to `main` run `.github/workflows/ci.yml`: `gofmt` check, `go vet ./...`, and `go test ./tests/...` from `src/`. Same checks as the local hook (plus tests); CI cannot be skipped with `--no-verify`.
+
 ### Architecture
 
 Check `design/DESIGN.md` for architecture details.
