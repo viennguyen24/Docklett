@@ -138,8 +138,8 @@ This project uses pre-commit hooks to automatically run `go fmt` and `go vet` be
 ```
 
 **What the hook does:**
-- Runs `go fmt` on all staged `.go` files and auto-stages changes
-- Runs `go vet ./...` to check for common mistakes
+- Runs `gofmt -w` on each staged `.go` file and re-stages changes (works across packages)
+- Runs `go vet ./...` from `src/` where `go.mod` lives
 - Blocks commit if vet finds issues
 
 **Bypassing the hook (not recommended):**

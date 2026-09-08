@@ -1,5 +1,6 @@
 #!/bin/sh
 # Pre-commit hook: Go formatting & linting
+# Module lives in src/ (go.mod). Format staged files one-by-one; vet from src/.
 
 # Check if go is installed
 if ! command -v go >/dev/null 2>&1; then
@@ -7,24 +8,44 @@ if ! command -v go >/dev/null 2>&1; then
     exit 1
 fi
 
-# Get staged Go files
-STAGED_GO_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.go$')
+REPO_ROOT=$(git rev-parse --show-toplevel)
+MODULE_DIR="$REPO_ROOT/src"
+
+if [ ! -f "$MODULE_DIR/go.mod" ]; then
+    echo "Error: go.mod not found at src/go.mod"
+    exit 1
+fi
+
+# Get staged Go files (paths relative to repo root)
+STAGED_GO_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.go$' || true)
 
 # Exit if no Go files staged
 if [ -z "$STAGED_GO_FILES" ]; then
     exit 0
 fi
 
-echo "Running go fmt..."
-go fmt $STAGED_GO_FILES
-
-# Re-stage files that go fmt modified
+echo "Running gofmt..."
+# go fmt rejects mixed directories when given multiple paths; gofmt -w handles each file.
+FMT_FAIL=0
 for FILE in $STAGED_GO_FILES; do
-    git add "$FILE"
+    if [ ! -f "$REPO_ROOT/$FILE" ]; then
+        continue
+    fi
+    gofmt -w "$REPO_ROOT/$FILE"
+    if [ $? -ne 0 ]; then
+        FMT_FAIL=1
+    fi
+    git add "$REPO_ROOT/$FILE"
 done
 
-echo "Running go vet..."
-go vet ./...
+if [ $FMT_FAIL -ne 0 ]; then
+    echo "Error: gofmt failed. Fix formatting before committing."
+    exit 1
+fi
+
+echo "Running go vet (from src/)..."
+# ./... only resolves against the module root, not the git repo root.
+(cd "$MODULE_DIR" && go vet ./...)
 VET_EXIT=$?
 
 if [ $VET_EXIT -ne 0 ]; then
