@@ -103,22 +103,26 @@ go run main.go -file ../example.docklett
 
 ### Running Tests
 
+Compiler tests live under `src/tests/` (module root is `src/`, where `go.mod` is). Shared helpers are in `tests/testutil`; scanner behavioral tests are in `tests/scanner` (see that folder’s `README.md`).
+
 ```bash
-# From repo root, navigate to src/ where go.mod is located
+# From repo root, enter the Go module
 cd src
 
-# Run all tests in all packages
-go test ./...
+# Run the full compiler test tree
+go test ./tests/...
 
-# Run tests in specific package
-go test ./compiler/scanner
-go test ./compiler/parser
-go test ./compiler/interpreter
+# Scanner suite only
+go test ./tests/scanner/
 
-# Run tests with verbose output
-go test -v ./...
+# Shared helpers package
+go test ./tests/testutil/
+
+# Verbose
+go test -v ./tests/scanner/
 ```
 
+Run tests from `src/` so package paths resolve against `go.mod`. Do not use the old `compiler/scanner` package path for the suite.
 ### Installing Git Hooks
 
 This project uses pre-commit hooks to automatically run `go fmt` and `go vet` before each commit.
